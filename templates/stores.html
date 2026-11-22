@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}Stores — PriceTracker{% endblock %}
+{% block head %}
+<style>
+    .store-card {
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 16px; border-bottom: 1px solid #f0f0f0;
+    }
+    .store-card:last-child { border-bottom: none; }
+    .store-name { font-weight: 700; font-size: 1rem; }
+    .store-active { font-size: 0.7rem; padding: 2px 8px; border-radius: 10px; background: #e8f5e9; color: #2e7d32; margin-left: 8px; }
+    .store-actions { display: flex; gap: 8px; }
+    .add-form { display: flex; gap: 10px; align-items: end; }
+    @media (max-width: 600px) { .add-form { flex-direction: column; align-items: stretch; } }
+</style>
+{% endblock %}
+
+{% block body %}
+<nav class="navbar">
+    <h1>Price<span>Tracker</span></h1>
+    <div class="nav-links">
+        <a href="/dashboard">Dashboard</a>
+        <a href="/logout">Logout</a>
+    </div>
+</nav>
+
+<div class="container">
+    <h2 style="margin-bottom: 16px;">My Stores</h2>
+
+    <div class="card">
+        <h3 style="margin-bottom: 12px;">Add New Store</h3>
+        <form method="post" action="/stores/add" class="add-form">
+            <div style="flex:1;">
+                <label>Store Name</label>
+                <input type="text" name="store_name" placeholder="e.g. My Second Shop" required>
+            </div>
+            <button type="submit" class="btn btn-primary">Add Store</button>
+        </form>
+    </div>
+
+    <div class="card">
+        <h3 style="margin-bottom: 8px;">Your Stores ({{ stores|length }})</h3>
+        {% for store in stores %}
+        <div class="store-card">
+            <div>
+                <span class="store-name">{{ store.name }}</span>
+                {% if store.id == active_store %}
+                    <span class="store-active">Active</span>
+                {% endif %}
+            </div>
+            <div class="store-actions">
+                {% if store.id != active_store %}
+                <form method="post" action="/stores/switch/{{ store.id }}" style="margin:0;">
+                    <button type="submit" class="btn btn-primary" style="padding:4px 12px; font-size:0.8rem;">Switch</button>
+                </form>
+                {% endif %}
+                {% if stores|length > 1 %}
+                <form method="post" action="/stores/remove/{{ store.id }}" style="margin:0;"
+                      onsubmit="return confirm('Remove {{ store.name }}? Products and data for this store will remain but be inaccessible.')">
+                    <button type="submit" class="btn btn-danger" style="padding:4px 12px; font-size:0.8rem;">Remove</button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="card" style="font-size:0.85rem; color:#666;">
+        <h3 style="margin-bottom: 8px;">How Multi-Store Works</h3>
+        <ul style="padding-left: 16px; line-height: 1.8;">
+            <li>Each store has its own products, prices, stock, and sales data</li>
+            <li>Switch between stores from the dashboard or this page</li>
+            <li>Employees you add can access the currently active store</li>
+            <li>Analytics and reports are per-store</li>
+        </ul>
+    </div>
+</div>
+{% endblock %}

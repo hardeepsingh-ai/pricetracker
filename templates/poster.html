@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Price Guarantee Poster — PriceTracker{% endblock %}
+{% block head %}
+<style>
+    @media print {
+        .navbar, .no-print { display: none !important; }
+        .poster { border: none !important; box-shadow: none !important; }
+    }
+    .poster {
+        max-width: 600px; margin: 0 auto; padding: 48px 32px;
+        border: 3px solid #4ecdc4; border-radius: 16px;
+        text-align: center; background: white;
+    }
+    .poster h1 { font-size: 2rem; color: #1a1a2e; margin-bottom: 8px; }
+    .poster .shield { font-size: 4rem; margin-bottom: 12px; }
+    .poster .tagline { font-size: 1.1rem; color: #4ecdc4; font-weight: 700; margin-bottom: 16px; }
+    .poster .detail { font-size: 0.95rem; color: #555; line-height: 1.6; margin-bottom: 20px; }
+    .poster .stat-row { display: flex; justify-content: center; gap: 32px; margin: 20px 0; }
+    .poster .stat { text-align: center; }
+    .poster .stat-num { font-size: 1.8rem; font-weight: 800; color: #4ecdc4; }
+    .poster .stat-label { font-size: 0.75rem; color: #888; }
+    .poster .footer { font-size: 0.75rem; color: #aaa; margin-top: 24px; border-top: 1px solid #eee; padding-top: 12px; }
+    .poster .qr-note { font-size: 0.8rem; color: #888; margin-top: 12px; }
+</style>
+{% endblock %}
+
+{% block body %}
+<nav class="navbar no-print">
+    <h1>Price<span>Tracker</span></h1>
+    <div class="nav-links">
+        <a href="/dashboard">Dashboard</a>
+        <a href="/analytics">Analytics</a>
+    </div>
+</nav>
+
+<div class="container">
+    <div class="no-print" style="text-align:center; margin-bottom: 20px;">
+        <button onclick="window.print()" class="btn btn-primary">Print / Save as PDF</button>
+    </div>
+
+    <div class="poster">
+        <div class="shield">&#128737;</div>
+        <h1>{{ data.shop_name }}</h1>
+        <div class="tagline">We Price-Check Daily Against Major Supermarkets</div>
+        <div class="detail">
+            Every day we scan prices at Tesco, Sainsbury's, ASDA, Morrisons and more
+            to make sure you get a fair deal — right here in your neighbourhood.
+        </div>
+
+        <div class="stat-row">
+            <div class="stat">
+                <div class="stat-num">{{ data.total_products }}</div>
+                <div class="stat-label">Products Tracked</div>
+            </div>
+            <div class="stat">
+                <div class="stat-num">{{ data.cheaper_count }}</div>
+                <div class="stat-label">Cheapest Locally</div>
+            </div>
+        </div>
+
+        <div class="detail" style="font-size:0.85rem;">
+            Compare our prices yourself at<br>
+            <strong style="color:#4ecdc4;">{{ username }}.pricetracker.app/compare</strong>
+        </div>
+
+        <div class="footer">
+            Powered by PriceTracker · Prices verified daily via Trolley.co.uk
+        </div>
+    </div>
+</div>
+{% endblock %}

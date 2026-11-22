@@ -1,0 +1,232 @@
+{% extends "base.html" %}
+{% block title %}Consumer Insights — PriceTracker{% endblock %}
+{% block head %}
+<style>
+    .insight-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .insight-card { background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+    .insight-card h3 { margin: 0 0 12px 0; font-size: 1rem; display: flex; align-items: center; gap: 8px; }
+    .insight-card .icon { font-size: 1.3rem; }
+    .segment-bar { display: flex; height: 28px; border-radius: 6px; overflow: hidden; margin: 8px 0; }
+    .segment-bar div { display: flex; align-items: center; justify-content: center; font-size: 0.7rem; color: #fff; font-weight: 600; }
+    .seg-price { background: #2196f3; }
+    .seg-quality { background: #9c27b0; }
+    .seg-convenience { background: #ff9800; }
+    .metric-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #f5f5f5; font-size: 0.85rem; }
+    .metric-row:last-child { border: none; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.7rem; font-weight: 600; }
+    .badge-green { background: #e8f5e9; color: #2e7d32; }
+    .badge-orange { background: #fff3e0; color: #e65100; }
+    .badge-red { background: #fce4ec; color: #c62828; }
+    .badge-blue { background: #e3f2fd; color: #1565c0; }
+    .badge-purple { background: #f3e5f5; color: #6a1b9a; }
+    .score-circle { width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; font-weight: 700; color: #fff; margin: 0 auto 8px; }
+    .product-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #f0f0f0; font-size: 0.85rem; }
+    .product-row:last-child { border: none; }
+    .trend-up { color: #2e7d32; }
+    .trend-down { color: #c62828; }
+    .trend-stable { color: #666; }
+    .full-width { grid-column: 1 / -1; }
+    .action-btns { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+    .action-btns a { font-size: 0.8rem; }
+    @media (max-width: 700px) { .insight-grid { grid-template-columns: 1fr; } }
+</style>
+{% endblock %}
+
+{% block body %}
+<nav class="navbar">
+    <h1>Price<span>Tracker</span></h1>
+    <div class="nav-links">
+        <a href="/dashboard">Dashboard</a>
+        <a href="/loyalty">Loyalty</a>
+        <a href="/feedback">Feedback</a>
+        <a href="/logout">Logout</a>
+    </div>
+</nav>
+
+<div class="container">
+    <h2 style="margin-bottom:4px;">Consumer Insights</h2>
+    <p style="color:#888;font-size:0.85rem;margin-bottom:16px;">{{ store_name }} — Behavioural analytics powered by real data</p>
+
+    <div class="insight-grid">
+
+        <!-- 1. Price Sensitivity Segmentation -->
+        <div class="insight-card">
+            <h3><span class="icon">🧠</span> Customer Segmentation</h3>
+            <p style="font-size:0.8rem;color:#666;margin-bottom:8px;">Based on price sensitivity analysis (Kahneman & Tversky)</p>
+            {% set segs = segmentation.segments %}
+            <div class="segment-bar">
+                {% if segs.price_conscious.pct > 0 %}
+                <div class="seg-price" style="width:{{ segs.price_conscious.pct }}%">{{ segs.price_conscious.pct }}%</div>
+                {% endif %}
+                {% if segs.quality_seeking.pct > 0 %}
+                <div class="seg-quality" style="width:{{ segs.quality_seeking.pct }}%">{{ segs.quality_seeking.pct }}%</div>
+                {% endif %}
+                {% if segs.convenience_driven.pct > 0 %}
+                <div class="seg-convenience" style="width:{{ segs.convenience_driven.pct }}%">{{ segs.convenience_driven.pct }}%</div>
+                {% endif %}
+            </div>
+            <div style="display:flex;gap:12px;font-size:0.75rem;flex-wrap:wrap;">
+                <span><span style="color:#2196f3;">●</span> Price-conscious ({{ segs.price_conscious.count }})</span>
+                <span><span style="color:#9c27b0;">●</span> Quality-seeking ({{ segs.quality_seeking.count }})</span>
+                <span><span style="color:#ff9800;">●</span> Convenience ({{ segs.convenience_driven.count }})</span>
+            </div>
+            <p style="margin-top:8px;font-size:0.8rem;">Dominant: <strong>{{ segmentation.dominant_segment | replace('_', ' ') | title }}</strong></p>
+        </div>
+
+        <!-- 8. Local Price Index -->
+        <div class="insight-card">
+            <h3><span class="icon">📊</span> Local Price Index</h3>
+            <p style="font-size:0.8rem;color:#666;margin-bottom:8px;">Community affordability score vs area average</p>
+            <div class="score-circle" style="background:{{ price_index.badge_color }}">{{ price_index.overall_index }}</div>
+            <p style="text-align:center;font-weight:600;margin-bottom:8px;">{{ price_index.rating }}</p>
+            <div class="metric-row"><span>Your basket</span><strong>£{{ "%.2f"|format(price_index.your_basket) }}</strong></div>
+            <div class="metric-row"><span>Area average</span><strong>£{{ "%.2f"|format(price_index.area_basket) }}</strong></div>
+            <div class="metric-row"><span>Customer saves</span><strong style="color:#2e7d32;">£{{ "%.2f"|format(price_index.savings) }}</strong></div>
+            <div class="metric-row"><span>Products matched</span><strong>{{ price_index.matched_products }}/{{ price_index.total_products }}</strong></div>
+        </div>
+
+        <!-- 2. Loss Leader Strategy -->
+        <div class="insight-card full-width">
+            <h3><span class="icon">🎯</span> Loss Leader Strategy Engine</h3>
+            <p style="font-size:0.8rem;color:#666;margin-bottom:8px;">Products to sell at/below cost to drive footfall (operant conditioning)</p>
+            {% if loss_leaders %}
+            {% for item in loss_leaders %}
+            <div class="product-row">
+                <div>
+                    <strong>{{ item.name }}</strong>
+                    <span class="badge badge-blue">{{ item.category }}</span>
+                    {% if item.is_staple %}<span class="badge badge-green">Staple</span>{% endif %}
+                </div>
+                <div style="text-align:right;">
+                    <span class="badge {% if item.footfall_score >= 5 %}badge-green{% elif item.footfall_score >= 3 %}badge-orange{% else %}badge-red{% endif %}">
+                        Score: {{ item.footfall_score }}/7
+                    </span>
+                    <div style="font-size:0.75rem;color:#888;">
+                        Cost £{{ "%.2f"|format(item.cost) }} → Suggest £{{ "%.2f"|format(item.loss_leader_price) }}
+                        (save £{{ "%.2f"|format(item.savings_vs_competitor) }} vs competitors)
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+            {% else %}
+            <p style="color:#aaa;font-size:0.85rem;">Add cost prices to your products to see loss leader suggestions.</p>
+            {% endif %}
+        </div>
+
+        <!-- 3. Price Anchoring Display -->
+        <div class="insight-card">
+            <h3><span class="icon">⚓</span> Price Anchoring</h3>
+            <p style="font-size:0.8rem;color:#666;margin-bottom:8px;">Kahneman's anchoring bias — show higher competitor prices first</p>
+            {% for item in anchoring %}
+            <div class="product-row">
+                <div>
+                    <strong>{{ item.name }}</strong>
+                    <div style="font-size:0.75rem;color:#888;">Was £{{ "%.2f"|format(item.anchor_price) }} at {{ item.anchor_store }}</div>
+                </div>
+                <div style="text-align:right;">
+                    <strong style="color:#2e7d32;">£{{ "%.2f"|format(item.my_price) }}</strong>
+                    <div style="font-size:0.75rem;color:#2e7d32;">Save {{ item.savings_pct }}%</div>
+                </div>
+            </div>
+            {% endfor %}
+            {% if anchoring %}
+            <div class="action-btns">
+                <a href="/anchoring/poster" class="btn btn-primary" style="padding:6px 16px;">Generate Poster</a>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- 4. Impulse Buy Placement -->
+        <div class="insight-card">
+            <h3><span class="icon">🛒</span> Impulse Buy Placement</h3>
+            <p style="font-size:0.8rem;color:#666;margin-bottom:8px;">Checkout placement based on margin + frequency</p>
+            {% for item in impulse %}
+            {% if item.impulse_score >= 3 %}
+            <div class="product-row">
+                <div>
+                    <strong>{{ item.name }}</strong>
+                    <span class="badge {% if item.placement == 'checkout_counter' %}badge-green{% elif item.placement == 'end_of_aisle' %}badge-orange{% else %}badge-blue{% endif %}">
+                        {{ item.placement | replace('_', ' ') | title }}
+                    </span>
+                </div>
+                <div style="text-align:right;font-size:0.8rem;">
+                    {{ item.margin_pct }}% margin · {{ item.units_per_day }} units/day
+                </div>
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+
+        <!-- 5. Dynamic Pricing -->
+        <div class="insight-card">
+            <h3><span class="icon">⏰</span> Dynamic Pricing</h3>
+            <p style="font-size:0.8rem;color:#666;margin-bottom:8px;">Time-of-day pricing for perishables</p>
+            {% if dynamic %}
+            {% for item in dynamic %}
+            <div class="product-row">
+                <div>
+                    <strong>{{ item.name }}</strong>
+                    {% if item.is_perishable %}<span class="badge badge-orange">Perishable</span>{% endif %}
+                </div>
+                <div style="text-align:right;font-size:0.8rem;">
+                    <span style="color:#888;">AM £{{ "%.2f"|format(item.morning_price) }}</span> ·
+                    <span style="color:#e65100;">PM £{{ "%.2f"|format(item.afternoon_price) }}</span> ·
+                    <span style="color:#c62828;">Eve £{{ "%.2f"|format(item.evening_price) }}</span>
+                </div>
+            </div>
+            {% endfor %}
+            {% else %}
+            <p style="color:#aaa;font-size:0.85rem;">No perishable items found. Add Dairy or Bread products.</p>
+            {% endif %}
+        </div>
+
+        <!-- 7. Basket Affinity -->
+        <div class="insight-card">
+            <h3><span class="icon">🔗</span> Basket Affinity</h3>
+            <p style="font-size:0.8rem;color:#666;margin-bottom:8px;">Association rule mining — "bought together" patterns</p>
+            {% for pair in affinity %}
+            <div class="product-row">
+                <div>
+                    <strong>{{ pair.item_a }}</strong> + <strong>{{ pair.item_b }}</strong>
+                </div>
+                <div>
+                    <span class="badge badge-purple">{{ pair.confidence }}% confidence</span>
+                </div>
+            </div>
+            {% endfor %}
+            {% if not affinity %}
+            <p style="color:#aaa;font-size:0.85rem;">Record transactions to see buying patterns.</p>
+            {% endif %}
+        </div>
+
+        <!-- 9. Seasonal Demand Forecasting -->
+        <div class="insight-card full-width">
+            <h3><span class="icon">📅</span> Seasonal Demand Forecast</h3>
+            <p style="font-size:0.8rem;color:#666;margin-bottom:8px;">
+                {{ seasonal.current_month }} → {{ seasonal.next_month }} predictions
+                {% if seasonal.upcoming_events %}
+                · Events: {{ seasonal.upcoming_events | join(', ') }}
+                {% endif %}
+            </p>
+            {% for item in seasonal.forecasts[:12] %}
+            <div class="product-row">
+                <div>
+                    <strong>{{ item.name }}</strong>
+                    <span class="badge badge-blue">{{ item.category }}</span>
+                </div>
+                <div style="text-align:right;font-size:0.8rem;">
+                    {{ item.current_units }} → {{ item.forecast_units }} units
+                    <span class="{% if item.trend == 'up' %}trend-up{% elif item.trend == 'down' %}trend-down{% else %}trend-stable{% endif %}">
+                        {% if item.trend == 'up' %}▲{% elif item.trend == 'down' %}▼{% else %}—{% endif %}
+                    </span>
+                    <span class="badge {% if item.action == 'Stock up' %}badge-green{% elif item.action == 'Reduce stock' %}badge-red{% else %}badge-blue{% endif %}">
+                        {{ item.action }}
+                    </span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+    </div>
+</div>
+{% endblock %}

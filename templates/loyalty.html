@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}Loyalty — PriceTracker{% endblock %}
+{% block head %}
+<style>
+    .loyalty-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .loyalty-card { background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+    .stamps { display: flex; gap: 6px; margin: 8px 0; flex-wrap: wrap; }
+    .stamp { width: 32px; height: 32px; border-radius: 50%; border: 2px solid #e0e0e0; display: flex; align-items: center; justify-content: center; font-size: 0.9rem; }
+    .stamp.filled { background: #4caf50; border-color: #4caf50; color: #fff; }
+    .stamp.empty { background: #fafafa; }
+    .customer-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #f0f0f0; }
+    .customer-row:last-child { border: none; }
+    .customer-phone { font-weight: 700; font-size: 0.95rem; }
+    .customer-meta { font-size: 0.8rem; color: #888; }
+    .points-badge { background: #4caf50; color: #fff; padding: 4px 12px; border-radius: 20px; font-weight: 700; font-size: 0.85rem; }
+    @media (max-width: 700px) { .loyalty-grid { grid-template-columns: 1fr; } }
+</style>
+{% endblock %}
+
+{% block body %}
+<nav class="navbar">
+    <h1>Price<span>Tracker</span></h1>
+    <div class="nav-links">
+        <a href="/dashboard">Dashboard</a>
+        <a href="/insights">Insights</a>
+        <a href="/feedback">Feedback</a>
+        <a href="/logout">Logout</a>
+    </div>
+</nav>
+
+<div class="container">
+    <h2 style="margin-bottom:4px;">Loyalty Programme</h2>
+    <p style="color:#888;font-size:0.85rem;margin-bottom:16px;">{{ store_name }} — Digital stamp card system</p>
+
+    <div class="loyalty-grid">
+        <div class="loyalty-card">
+            <h3 style="margin:0 0 12px 0;">Add Points</h3>
+            <form method="post" action="/loyalty/add">
+                <div style="margin-bottom:8px;">
+                    <label>Customer Phone</label>
+                    <input type="tel" name="phone" placeholder="07123456789" required class="input">
+                </div>
+                <div style="margin-bottom:8px;">
+                    <label>Transaction Amount (£)</label>
+                    <input type="number" step="0.01" name="amount" placeholder="12.50" required class="input">
+                </div>
+                <button type="submit" class="btn btn-primary" style="width:100%;">Add Points (£1 = 1 point)</button>
+            </form>
+        </div>
+
+        <div class="loyalty-card">
+            <h3 style="margin:0 0 12px 0;">Redeem Points</h3>
+            <form method="post" action="/loyalty/redeem">
+                <div style="margin-bottom:8px;">
+                    <label>Customer Phone</label>
+                    <input type="tel" name="phone" placeholder="07123456789" required class="input">
+                </div>
+                <div style="margin-bottom:8px;">
+                    <label>Points to Redeem</label>
+                    <input type="number" name="points" placeholder="100" required class="input">
+                </div>
+                <button type="submit" class="btn btn-primary" style="width:100%;background:#9c27b0;">Redeem Points</button>
+            </form>
+            <p style="font-size:0.75rem;color:#888;margin-top:6px;">100 points = £1 off · 10 visits = free stamp reward</p>
+        </div>
+    </div>
+
+    <div class="card" style="margin-top:16px;">
+        <h3 style="margin-bottom:12px;">Loyalty Customers ({{ customers | length }})</h3>
+        {% if customers %}
+        {% for phone, data in customers.items() %}
+        <div class="customer-row">
+            <div>
+                <div class="customer-phone">{{ phone }}</div>
+                <div class="customer-meta">
+                    {{ data.visits }} visits · £{{ "%.2f"|format(data.total_spend) }} total · Avg basket £{{ "%.2f"|format(data.avg_basket) }}
+                </div>
+                <div class="stamps">
+                    {% for i in range(10) %}
+                    <div class="stamp {% if i < data.stamps %}filled{% else %}empty{% endif %}">
+                        {% if i < data.stamps %}✓{% else %}{{ i + 1 }}{% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="points-badge">{{ data.points }} pts</div>
+        </div>
+        {% endfor %}
+        {% else %}
+        <p style="color:#aaa;text-align:center;padding:20px;">No loyalty customers yet. Add points from a transaction to get started.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

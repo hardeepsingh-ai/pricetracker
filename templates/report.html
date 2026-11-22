@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+{% block title %}Price Report — PriceTracker{% endblock %}
+{% block head %}
+<style>
+    @media print {
+        .no-print { display: none !important; }
+        .card { break-inside: avoid; }
+        body { background: white; }
+    }
+    .report-header {
+        text-align: center;
+        margin-bottom: 24px;
+        padding-bottom: 16px;
+        border-bottom: 2px solid #4ecdc4;
+    }
+    .report-header h2 { margin-bottom: 4px; }
+    .report-header p { color: #888; font-size: 0.85rem; }
+
+    .summary-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+        margin-bottom: 20px;
+    }
+    .summary-box {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 16px;
+        text-align: center;
+    }
+    .summary-box .num { font-size: 1.6rem; font-weight: 800; }
+    .summary-box .label { font-size: 0.75rem; color: #888; text-transform: uppercase; }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.85rem;
+    }
+    th, td {
+        padding: 8px 10px;
+        text-align: left;
+        border-bottom: 1px solid #eee;
+    }
+    th {
+        background: #f8f9fa;
+        font-weight: 700;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        color: #666;
+    }
+    .price-down { color: #e74c3c; }
+    .price-up { color: #27ae60; }
+
+    .print-btn {
+        margin-bottom: 20px;
+    }
+
+    @media (max-width: 600px) {
+        .summary-grid { grid-template-columns: 1fr; }
+        table { font-size: 0.75rem; }
+        th, td { padding: 6px 4px; }
+    }
+</style>
+{% endblock %}
+
+{% block body %}
+<nav class="navbar no-print">
+    <h1>Price<span>Tracker</span></h1>
+    <div class="nav-links">
+        <a href="/dashboard">Dashboard</a>
+        <a href="/logout">Logout</a>
+    </div>
+</nav>
+
+<div class="container">
+    <div class="no-print">
+        <button class="btn btn-primary print-btn" onclick="window.print()">Print / Save as PDF</button>
+        <a href="/dashboard" class="btn btn-outline print-btn" style="text-decoration:none;">Back to Dashboard</a>
+    </div>
+
+    <div class="report-header">
+        <h2>{{ data.shop_name }} — Price Report</h2>
+        <p>Generated {{ generated_at }} · {{ data.total_products }} products tracked</p>
+    </div>
+
+    <div class="summary-grid">
+        <div class="summary-box">
+            <div class="num price-up">{{ data.cheaper_count }}</div>
+            <div class="label">You're Cheaper</div>
+        </div>
+        <div class="summary-box">
+            <div class="num price-down">{{ data.expensive_count }}</div>
+            <div class="label">More Expensive</div>
+        </div>
+        <div class="summary-box">
+            <div class="num">{{ data.avg_margin_pct }}%</div>
+            <div class="label">Avg Margin</div>
+        </div>
+    </div>
+
+    {% for cat_name, items in data.categories.items() %}
+    <div class="card" style="margin-bottom: 16px;">
+        <h3 style="margin-bottom: 8px;">{{ cat_name }}</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Product</th>
+                    <th>Your Price</th>
+                    <th>Cheapest</th>
+                    <th>Most Exp.</th>
+                    <th>Status</th>
+                    <th>Margin</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in items %}
+                <tr>
+                    <td>
+                        <strong>{{ item.name }}</strong>
+                        {% if item.size %}<br><small style="color:#888;">{{ item.size }}</small>{% endif %}
+                    </td>
+                    <td>£{{ "%.2f"|format(item.my_price) }}</td>
+                    <td>
+                        {% if item.cheapest %}
+                        £{{ "%.2f"|format(item.cheapest.price) }}
+                        <br><small style="color:#888;">{{ item.cheapest.store }}</small>
+                        {% else %}-{% endif %}
+                    </td>
+                    <td>
+                        {% if item.most_expensive %}
+                        £{{ "%.2f"|format(item.most_expensive.price) }}
+                        <br><small style="color:#888;">{{ item.most_expensive.store }}</small>
+                        {% else %}-{% endif %}
+                    </td>
+                    <td>
+                        {% if item.status == 'cheapest' %}
+                            <span class="price-up">✓ Cheapest</span>
+                        {% elif item.status == 'most_expensive' %}
+                            <span class="price-down">✗ Expensive</span>
+                        {% elif item.status == 'mid_range' %}
+                            ~ Mid
+                        {% else %}—{% endif %}
+                    </td>
+                    <td>
+                        {% if item.margin %}
+                        <span class="{{ 'price-up' if item.margin > 0 else 'price-down' }}">
+                            £{{ "%.2f"|format(item.margin) }} ({{ item.margin_pct }}%)
+                        </span>
+                        {% else %}—{% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endfor %}
+
+    {% if data.alerts %}
+    <div class="card" style="margin-bottom: 16px;">
+        <h3 style="margin-bottom: 8px;">Recent Price Alerts</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Product</th>
+                    <th>Store</th>
+                    <th>Old Price</th>
+                    <th>New Price</th>
+                    <th>Drop</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for a in data.alerts %}
+                <tr>
+                    <td>{{ a.product }}</td>
+                    <td>{{ a.store }}</td>
+                    <td>£{{ "%.2f"|format(a.old_price) }}</td>
+                    <td>£{{ "%.2f"|format(a.new_price) }}</td>
+                    <td class="price-down">-£{{ "%.2f"|format(a.drop) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

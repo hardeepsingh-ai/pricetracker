@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ data.shop_name }} — Price Comparison</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f8f9fa; color: #333; }
+        .header {
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            color: white; padding: 32px 16px; text-align: center;
+        }
+        .header h1 { font-size: 1.5rem; margin-bottom: 4px; }
+        .header p { font-size: 0.85rem; opacity: 0.8; }
+        .container { max-width: 700px; margin: 0 auto; padding: 16px; }
+        .product-card {
+            background: white; border-radius: 10px; padding: 16px;
+            margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+        .product-name { font-weight: 700; font-size: 1rem; margin-bottom: 8px; }
+        .price-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 0.85rem; }
+        .price-row.my-price { font-weight: 700; color: #4ecdc4; border-bottom: 1px solid #eee; padding-bottom: 8px; margin-bottom: 4px; }
+        .price-row .store { color: #666; }
+        .cheaper { color: #27ae60; font-weight: 600; }
+        .more-expensive { color: #e74c3c; }
+        .badge { display: inline-block; font-size: 0.65rem; padding: 2px 6px; border-radius: 8px; margin-left: 6px; }
+        .badge-cheapest { background: #e8f5e9; color: #2e7d32; }
+        .badge-competitive { background: #fff3e0; color: #e65100; }
+        .footer { text-align: center; padding: 24px; font-size: 0.75rem; color: #aaa; }
+        .category-title { font-size: 0.8rem; font-weight: 700; color: #4ecdc4; margin: 16px 0 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>{{ data.shop_name }}</h1>
+        <p>Live price comparison · Updated daily</p>
+    </div>
+    <div class="container">
+        {% set ns = namespace(current_cat='') %}
+        {% for product in data.comparisons %}
+        {% if product.category != ns.current_cat %}
+            {% set ns.current_cat = product.category %}
+            <div class="category-title">{{ product.category }}</div>
+        {% endif %}
+        <div class="product-card">
+            <div class="product-name">
+                {{ product.name }}
+                {% if product.size %}<span style="font-weight:400; font-size:0.8rem; color:#888;">{{ product.size }}</span>{% endif %}
+                {% if product.status == 'cheapest' %}
+                    <span class="badge badge-cheapest">Cheapest</span>
+                {% elif product.competitors %}
+                    <span class="badge badge-competitive">Competitive</span>
+                {% endif %}
+            </div>
+            <div class="price-row my-price">
+                <span>Our Price</span>
+                <span>£{{ "%.2f"|format(product.my_price) }}</span>
+            </div>
+            {% for c in product.competitors[:5] %}
+            <div class="price-row">
+                <span class="store">{{ c.store }}</span>
+                <span class="{{ 'cheaper' if c.price > product.my_price else 'more-expensive' }}">
+                    £{{ "%.2f"|format(c.price) }}
+                </span>
+            </div>
+            {% endfor %}
+        </div>
+        {% endfor %}
+
+        {% if not data.comparisons %}
+        <div class="product-card" style="text-align:center; color:#888;">
+            <p>No products tracked yet. Check back soon!</p>
+        </div>
+        {% endif %}
+    </div>
+    <div class="footer">
+        Powered by PriceTracker · Prices sourced from Trolley.co.uk
+    </div>
+</body>
+</html>

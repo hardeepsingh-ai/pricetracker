@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% block title %}Stock — PriceTracker{% endblock %}
+{% block head %}
+<style>
+    .tabs { display: flex; gap: 0; border-bottom: 2px solid #eee; margin-bottom: 16px; }
+    .tab { padding: 8px 16px; cursor: pointer; font-size: 0.85rem; font-weight: 600; border-bottom: 2px solid transparent; margin-bottom: -2px; color: #888; }
+    .tab.active { color: #4ecdc4; border-bottom-color: #4ecdc4; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    .stock-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #f0f0f0; }
+    .stock-row:last-child { border-bottom: none; }
+    .status-badge { font-size: 0.7rem; padding: 2px 8px; border-radius: 10px; font-weight: 600; }
+    .status-in_stock { background: #e8f5e9; color: #2e7d32; }
+    .status-low { background: #fff3e0; color: #e65100; }
+    .status-out_of_stock { background: #fce4ec; color: #c62828; }
+    .form-inline { display: flex; gap: 8px; align-items: end; flex-wrap: wrap; }
+    .form-inline input, .form-inline select { max-width: 160px; }
+    .supplier-row { font-size: 0.85rem; padding: 6px 0; border-bottom: 1px solid #f8f8f8; display: flex; justify-content: space-between; }
+</style>
+{% endblock %}
+
+{% block body %}
+<nav class="navbar">
+    <h1>Price<span>Tracker</span></h1>
+    <div class="nav-links">
+        <a href="/dashboard">Dashboard</a>
+        <a href="/analytics">Analytics</a>
+        <a href="/logout">Logout</a>
+    </div>
+</nav>
+
+<div class="container">
+    <h2 style="margin-bottom: 16px;">Stock Management</h2>
+
+    <div class="tabs">
+        <div class="tab active" onclick="switchTab('stock')">Stock Status</div>
+        <div class="tab" onclick="switchTab('sales')">Daily Sales</div>
+        <div class="tab" onclick="switchTab('supplier')">Supplier Prices</div>
+    </div>
+
+    <!-- Stock Status -->
+    <div id="tab-stock" class="tab-content active">
+        <div class="card">
+            {% for p in products %}
+            <div class="stock-row">
+                <div>
+                    <strong>{{ p.name }}</strong>
+                    {% set st = stock.get(p.name, 'in_stock') %}
+                    <span class="status-badge status-{{ st }}">{{ st|replace('_',' ') }}</span>
+                </div>
+                <form method="post" action="/stock/update" class="form-inline" style="margin:0;">
+                    <input type="hidden" name="product_name" value="{{ p.name }}">
+                    <select name="status" style="max-width:120px;">
+                        <option value="in_stock" {{ 'selected' if st == 'in_stock' }}>In Stock</option>
+                        <option value="low" {{ 'selected' if st == 'low' }}>Low</option>
+                        <option value="out_of_stock" {{ 'selected' if st == 'out_of_stock' }}>Out of Stock</option>
+                    </select>
+                    <button type="submit" class="btn btn-primary" style="padding:4px 12px; font-size:0.8rem;">Update</button>
+                </form>
+            </div>
+            {% endfor %}
+            {% if not products %}
+            <p style="color:#888;">Add products on the Setup page first.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Daily Sales -->
+    <div id="tab-sales" class="tab-content">
+        <div class="card">
+            <h3 style="margin-bottom: 12px;">Log Today's Sales</h3>
+            <form method="post" action="/stock/sales" class="form-inline">
+                <div>
+                    <label>Product</label>
+                    <select name="product_name">
+                        {% for p in products %}<option>{{ p.name }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label>Units Sold</label>
+                    <input type="number" name="units" min="0" value="0" required>
+                </div>
+                <button type="submit" class="btn btn-primary">Log</button>
+            </form>
+        </div>
+        {% if sales %}
+        <div class="card">
+            <h3 style="margin-bottom: 8px;">Today's Sales</h3>
+            {% for name, units in sales.items() %}
+            <div class="stock-row">
+                <strong>{{ name }}</strong>
+                <span>{{ units }} units</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Supplier Prices -->
+    <div id="tab-supplier" class="tab-content">
+        <div class="card">
+            <h3 style="margin-bottom: 12px;">Add Supplier Price</h3>
+            <form method="post" action="/stock/supplier" class="form-inline">
+                <div>
+                    <label>Product</label>
+                    <select name="product_name">
+                        {% for p in products %}<option>{{ p.name }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label>Supplier</label>
+                    <input type="text" name="supplier" placeholder="e.g. Booker" required>
+                </div>
+                <div>
+                    <label>Price (£)</label>
+                    <input type="number" name="price" step="0.01" min="0" required>
+                </div>
+                <button type="submit" class="btn btn-primary">Save</button>
+            </form>
+        </div>
+        {% if supplier %}
+        <div class="card">
+            <h3 style="margin-bottom: 8px;">Supplier Prices</h3>
+            {% for name, suppliers in supplier.items() %}
+            <div style="margin-bottom: 12px;">
+                <strong>{{ name }}</strong>
+                {% for s in suppliers %}
+                <div class="supplier-row">
+                    <span>{{ s.supplier }}</span>
+                    <span>£{{ "%.2f"|format(s.price) }}</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+function switchTab(name) {
+    document.querySelectorAll('.tab').forEach((t, i) => {
+        t.classList.toggle('active', t.textContent.toLowerCase().includes(name.substring(0, 4)));
+    });
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+}
+</script>
+{% endblock %}

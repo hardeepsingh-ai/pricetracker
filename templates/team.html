@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}Team — PriceTracker{% endblock %}
+{% block head %}
+<style>
+    .form-row { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 10px; align-items: end; }
+    .emp-card { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #f0f0f0; }
+    .emp-card:last-child { border-bottom: none; }
+    .role-badge { font-size: 0.7rem; padding: 2px 8px; border-radius: 10px; }
+    .role-viewer { background: #e3f2fd; color: #1565c0; }
+    .role-scanner { background: #e8f5e9; color: #2e7d32; }
+    .role-admin { background: #f3e5f5; color: #7b1fa2; }
+    .log-entry { font-size: 0.8rem; padding: 6px 0; border-bottom: 1px solid #f8f8f8; color: #555; }
+    .log-entry strong { color: #333; }
+    .log-time { font-size: 0.7rem; color: #aaa; }
+    .req-card { padding: 12px 0; border-bottom: 1px solid #f0f0f0; display: flex; justify-content: space-between; align-items: center; }
+    @media (max-width: 600px) { .form-row { grid-template-columns: 1fr; } }
+</style>
+{% endblock %}
+
+{% block body %}
+<nav class="navbar">
+    <h1>Price<span>Tracker</span></h1>
+    <div class="nav-links">
+        <a href="/dashboard">Dashboard</a>
+        <a href="/logout">Logout</a>
+    </div>
+</nav>
+
+<div class="container">
+    <h2 style="margin-bottom: 16px;">Team Management</h2>
+
+    <div class="card">
+        <h3 style="margin-bottom: 12px;">Add Employee</h3>
+        <form method="post" action="/team/add">
+            <div class="form-row">
+                <div>
+                    <label>Username</label>
+                    <input type="text" name="emp_username" placeholder="e.g. ahmed" required>
+                </div>
+                <div>
+                    <label>Password</label>
+                    <input type="password" name="emp_password" placeholder="Min 4 chars" required>
+                </div>
+                <div>
+                    <label>Role</label>
+                    <select name="emp_role">
+                        <option value="viewer">Viewer — can only view</option>
+                        <option value="scanner">Scanner — can scan prices</option>
+                        <option value="admin">Admin — full access except team</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary">Add</button>
+            </div>
+        </form>
+    </div>
+
+    {% if employees %}
+    <div class="card">
+        <h3 style="margin-bottom: 8px;">Employees ({{ employees|length }})</h3>
+        {% for emp in employees %}
+        <div class="emp-card">
+            <div>
+                <strong>{{ emp.username }}</strong>
+                <span class="role-badge role-{{ emp.role }}">{{ emp.role }}</span>
+            </div>
+            <form method="post" action="/team/remove/{{ emp.username }}" style="margin:0;">
+                <button type="submit" class="btn btn-danger" style="padding:4px 12px; font-size:0.8rem;">Remove</button>
+            </form>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if price_requests %}
+    <div class="card">
+        <h3 style="margin-bottom: 8px;">Pending Price Requests</h3>
+        {% for req in price_requests %}
+        <div class="req-card">
+            <div>
+                <strong>{{ req.product_name }}</strong> → £{{ "%.2f"|format(req.new_price) }}
+                <div style="font-size:0.78rem; color:#888;">
+                    By {{ req.requester }} · {{ req.reason or 'No reason given' }}
+                </div>
+            </div>
+            <div style="display:flex; gap:6px;">
+                <form method="post" action="/team/request-resolve/{{ req.id }}" style="margin:0;">
+                    <input type="hidden" name="action" value="approve">
+                    <button class="btn btn-primary" style="padding:4px 12px; font-size:0.8rem;">Approve</button>
+                </form>
+                <form method="post" action="/team/request-resolve/{{ req.id }}" style="margin:0;">
+                    <input type="hidden" name="action" value="reject">
+                    <button class="btn btn-danger" style="padding:4px 12px; font-size:0.8rem;">Reject</button>
+                </form>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="card">
+        <h3 style="margin-bottom: 8px;">Activity Log</h3>
+        {% for log in activity_log %}
+        <div class="log-entry">
+            <strong>{{ log.actor }}</strong> · {{ log.action|replace('_',' ') }}
+            {% if log.detail %}<span style="color:#888;"> — {{ log.detail }}</span>{% endif %}
+            <span class="log-time">{{ log.timestamp[:16] }}</span>
+        </div>
+        {% endfor %}
+        {% if not activity_log|list %}
+        <p style="color:#888; font-size:0.85rem;">No activity yet.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

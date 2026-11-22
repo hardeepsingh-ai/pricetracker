@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}Feedback — PriceTracker{% endblock %}
+{% block head %}
+<style>
+    .nps-score { font-size: 3rem; font-weight: 800; text-align: center; }
+    .nps-label { text-align: center; font-size: 0.85rem; color: #888; margin-bottom: 16px; }
+    .rating-bars { margin: 12px 0; }
+    .rating-bar-row { display: flex; align-items: center; gap: 8px; margin: 6px 0; font-size: 0.85rem; }
+    .rating-bar-label { width: 70px; text-align: right; }
+    .rating-bar-track { flex: 1; height: 20px; background: #f0f0f0; border-radius: 10px; overflow: hidden; }
+    .rating-bar-fill { height: 100%; border-radius: 10px; display: flex; align-items: center; justify-content: flex-end; padding-right: 6px; font-size: 0.7rem; color: #fff; font-weight: 600; }
+    .feedback-item { padding: 12px 0; border-bottom: 1px solid #f0f0f0; }
+    .feedback-item:last-child { border: none; }
+    .stars { color: #ff9800; letter-spacing: 2px; }
+    .qr-section { text-align: center; padding: 20px; }
+    .qr-url { background: #f5f5f5; padding: 8px 16px; border-radius: 8px; font-family: monospace; font-size: 0.85rem; word-break: break-all; }
+</style>
+{% endblock %}
+
+{% block body %}
+<nav class="navbar">
+    <h1>Price<span>Tracker</span></h1>
+    <div class="nav-links">
+        <a href="/dashboard">Dashboard</a>
+        <a href="/insights">Insights</a>
+        <a href="/loyalty">Loyalty</a>
+        <a href="/logout">Logout</a>
+    </div>
+</nav>
+
+<div class="container">
+    <h2 style="margin-bottom:4px;">Customer Feedback & NPS</h2>
+    <p style="color:#888;font-size:0.85rem;margin-bottom:16px;">{{ store_name }} — {{ feedback.count }} responses</p>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <div class="card">
+            <h3 style="margin:0 0 8px 0;">Net Promoter Score</h3>
+            <div class="nps-score" style="color:{% if feedback.nps > 50 %}#2e7d32{% elif feedback.nps > 0 %}#ff9800{% else %}#c62828{% endif %}">
+                {{ feedback.nps }}
+            </div>
+            <div class="nps-label">
+                {% if feedback.nps > 50 %}Excellent{% elif feedback.nps > 0 %}Good{% elif feedback.nps == 0 %}Neutral{% else %}Needs Improvement{% endif %}
+            </div>
+            <div class="rating-bars">
+                <div class="rating-bar-row">
+                    <span class="rating-bar-label">Value</span>
+                    <div class="rating-bar-track">
+                        <div class="rating-bar-fill" style="width:{{ (feedback.avg_value / 10 * 100) | round }}%;background:#4caf50;">{{ feedback.avg_value }}/10</div>
+                    </div>
+                </div>
+                <div class="rating-bar-row">
+                    <span class="rating-bar-label">Range</span>
+                    <div class="rating-bar-track">
+                        <div class="rating-bar-fill" style="width:{{ (feedback.avg_range / 10 * 100) | round }}%;background:#2196f3;">{{ feedback.avg_range }}/10</div>
+                    </div>
+                </div>
+                <div class="rating-bar-row">
+                    <span class="rating-bar-label">Service</span>
+                    <div class="rating-bar-track">
+                        <div class="rating-bar-fill" style="width:{{ (feedback.avg_service / 10 * 100) | round }}%;background:#9c27b0;">{{ feedback.avg_service }}/10</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3 style="margin:0 0 12px 0;">QR Code Feedback Link</h3>
+            <div class="qr-section">
+                <p style="font-size:0.85rem;color:#666;margin-bottom:12px;">Share this link with customers or print a QR code pointing to it:</p>
+                <div class="qr-url" id="feedbackUrl">/feedback/qr?store={{ username }}</div>
+                <p style="font-size:0.75rem;color:#aaa;margin-top:8px;">Customers can rate value, range & service anonymously</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="card" style="margin-top:16px;">
+        <h3 style="margin-bottom:12px;">Recent Feedback</h3>
+        {% if feedback.recent %}
+        {% for fb in feedback.recent %}
+        <div class="feedback-item">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+                <div>
+                    <div class="stars">{% for i in range(fb.overall) %}★{% endfor %}{% for i in range(10 - fb.overall) %}☆{% endfor %}</div>
+                    <div style="font-size:0.8rem;color:#888;">Value: {{ fb.value }}/10 · Range: {{ fb.range }}/10 · Service: {{ fb.service }}/10</div>
+                </div>
+                <span style="font-size:0.75rem;color:#aaa;">{{ fb.timestamp[:10] }}</span>
+            </div>
+            {% if fb.comment %}
+            <p style="font-size:0.85rem;margin-top:4px;color:#333;">"{{ fb.comment }}"</p>
+            {% endif %}
+        </div>
+        {% endfor %}
+        {% else %}
+        <p style="color:#aaa;text-align:center;padding:20px;">No feedback yet. Share the QR link with customers to start collecting.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

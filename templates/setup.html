@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% block title %}Setup — PriceTracker{% endblock %}
+{% block head %}
+<style>
+    .form-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+    }
+    .form-grid .full-width {
+        grid-column: 1 / -1;
+    }
+    .product-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 0;
+        border-bottom: 1px solid #f0f0f0;
+    }
+    .product-item:last-child { border-bottom: none; }
+    .product-info { flex: 1; }
+    .product-name { font-weight: 700; }
+    .product-meta { font-size: 0.8rem; color: #888; margin-top: 2px; }
+    .category-badge {
+        display: inline-block;
+        font-size: 0.7rem;
+        padding: 2px 8px;
+        border-radius: 10px;
+        background: #e8f5e9;
+        color: #2e7d32;
+        margin-left: 6px;
+    }
+    .size-badge {
+        display: inline-block;
+        font-size: 0.7rem;
+        padding: 2px 8px;
+        border-radius: 10px;
+        background: #e3f2fd;
+        color: #1565c0;
+        margin-left: 4px;
+    }
+    @media (max-width: 600px) {
+        .form-grid { grid-template-columns: 1fr; }
+    }
+</style>
+{% endblock %}
+
+{% block body %}
+<nav class="navbar">
+    <h1>Price<span>Tracker</span></h1>
+    <div class="nav-links">
+        <a href="/dashboard">Dashboard</a>
+        <a href="/logout">Logout</a>
+    </div>
+</nav>
+
+<div class="container">
+    <h2 style="margin-bottom: 16px;">Product Setup</h2>
+
+    <div class="card">
+        <h3 style="margin-bottom: 12px;">Add Product</h3>
+        <form method="post" action="/setup/add">
+            <div class="form-grid">
+                <div class="full-width">
+                    <label>Product Name</label>
+                    <input type="text" name="product_name" list="suggestions" placeholder="e.g. Lucozade" required class="input">
+                    <datalist id="suggestions">
+                        {% for p in sample_products %}
+                        <option value="{{ p }}">
+                        {% endfor %}
+                    </datalist>
+                </div>
+                <div>
+                    <label>Brand / Company</label>
+                    <input type="text" name="brand" placeholder="e.g. Warburtons, Coca-Cola" class="input">
+                </div>
+                <div>
+                    <label>Size / Variant</label>
+                    <input type="text" name="size" placeholder="e.g. 500ml, 6 pack" class="input">
+                </div>
+                <div>
+                    <label>Category</label>
+                    <select name="category" class="input">
+                        {% for cat in categories %}
+                        <option value="{{ cat }}">{{ cat }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label>Your Selling Price (£)</label>
+                    <input type="number" step="0.01" name="my_price" placeholder="1.50" required class="input">
+                </div>
+                <div>
+                    <label>Cost Price (£) <span style="color:#aaa; font-size:0.8rem;">optional</span></label>
+                    <input type="number" step="0.01" name="cost_price" placeholder="0.99" class="input">
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary" style="width:100%; margin-top: 12px;">Add Product</button>
+        </form>
+    </div>
+
+    {% if products %}
+    <div class="card" style="margin-top: 16px;">
+        <h3 style="margin-bottom: 8px;">Your Products ({{ products|length }})</h3>
+        {% for product in products %}
+        <div class="product-item">
+            <div class="product-info">
+                <div class="product-name">
+                    {{ product.name }}
+                    {% if product.brand %}<span class="size-badge" style="background:#fff3e0;color:#e65100;">{{ product.brand }}</span>{% endif %}
+                    {% if product.size %}<span class="size-badge">{{ product.size }}</span>{% endif %}
+                    <span class="category-badge">{{ product.category | default('Other') }}</span>
+                </div>
+                <div class="product-meta">
+                    Selling: £{{ "%.2f"|format(product.price) }}
+                    {% if product.cost_price %} · Cost: £{{ "%.2f"|format(product.cost_price) }}{% endif %}
+                </div>
+            </div>
+            <form method="post" action="/setup/remove/{{ loop.index0 }}" style="margin:0;">
+                <button type="submit" class="btn btn-danger" style="padding: 4px 12px; font-size: 0.8rem;">Remove</button>
+            </form>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <a href="/dashboard" class="btn btn-primary" style="display:block; text-align:center; margin-top: 16px;">Go to Dashboard</a>
+</div>
+{% endblock %}

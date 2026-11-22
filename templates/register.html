@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Register — PriceTracker{% endblock %}
+{% block body %}
+<div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; background: #1a1a2e;">
+    <div class="card" style="width: 100%; max-width: 400px; margin: 20px;">
+        <h1 style="text-align: center; margin-bottom: 4px; font-size: 1.5rem;">
+            Price<span style="color: #4ecdc4;">Tracker</span>
+        </h1>
+        <p style="text-align: center; color: #888; margin-bottom: 24px; font-size: 0.9rem;">
+            Create your shop account
+        </p>
+
+        {% if error %}
+        <div class="error-msg">{{ error }}</div>
+        {% endif %}
+
+        <form method="POST" action="/register">
+            <label>Shop Name</label>
+            <input type="text" name="shop_name" placeholder="e.g. Hilton Convenience Store" required>
+
+            <label>Username</label>
+            <input type="text" name="username" placeholder="Choose a username" required>
+
+            <label>Password</label>
+            <input type="password" name="password" placeholder="Choose a password" required>
+
+            <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 8px;">
+                Create Account
+            </button>
+        </form>
+
+        <p style="text-align: center; margin-top: 16px; font-size: 0.85rem; color: #888;">
+            Already have an account? <a href="/login" style="color: #4ecdc4;">Sign in</a>
+        </p>
+    </div>
+</div>
+{% endblock %}

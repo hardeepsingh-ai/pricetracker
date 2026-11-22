@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+{% block title %}Analytics — PriceTracker{% endblock %}
+{% block head %}
+<style>
+    .section-title { font-size: 1rem; font-weight: 700; margin: 20px 0 8px; padding-bottom: 6px; border-bottom: 2px solid #4ecdc4; }
+    .basket-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f0f0f0; font-size: 0.88rem; }
+    .basket-row:last-child { border-bottom: none; }
+    .savings-positive { color: #27ae60; font-weight: 700; }
+    .savings-negative { color: #e74c3c; font-weight: 700; }
+
+    .heatmap-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; overflow-x: auto; display: block; }
+    .heatmap-table th, .heatmap-table td { padding: 6px 8px; text-align: center; border: 1px solid #eee; }
+    .heatmap-table th { background: #f8f9fa; font-size: 0.7rem; }
+    .hm-cheapest { background: #e8f5e9; color: #2e7d32; font-weight: 700; }
+    .hm-expensive { background: #fce4ec; color: #c62828; }
+    .hm-mid { background: #fff8e1; }
+
+    .velocity-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f0f0f0; font-size: 0.85rem; }
+    .velocity-row:last-child { border-bottom: none; }
+    .change-count { font-weight: 700; color: #e67e22; }
+
+    .reorder-item { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f0f0f0; }
+    .reorder-item:last-child { border-bottom: none; }
+    .priority-high { color: #c62828; font-weight: 700; }
+    .priority-medium { color: #e65100; font-weight: 600; }
+
+    .customer-card {
+        background: linear-gradient(135deg, #4ecdc4, #45b7af);
+        color: white;
+        border-radius: 12px;
+        padding: 24px;
+        text-align: center;
+        margin-bottom: 16px;
+    }
+    .customer-card h3 { font-size: 1.3rem; margin-bottom: 8px; }
+    .customer-card p { font-size: 0.9rem; opacity: 0.9; }
+
+    @media (max-width: 600px) { .heatmap-table { font-size: 0.65rem; } }
+</style>
+{% endblock %}
+
+{% block body %}
+<nav class="navbar">
+    <h1>Price<span>Tracker</span></h1>
+    <div class="nav-links">
+        <a href="/dashboard">Dashboard</a>
+        <a href="/stock">Stock</a>
+        <a href="/logout">Logout</a>
+    </div>
+</nav>
+
+<div class="container">
+    <h2 style="margin-bottom: 16px;">Analytics</h2>
+
+    <!-- Basket Comparison -->
+    <div class="section-title">Basket Comparison</div>
+    <div class="card">
+        <p style="font-size:0.82rem; color:#888; margin-bottom:8px;">
+            Your total for all {{ data.total_products }} products: <strong>£{{ "%.2f"|format(basket.my_total) }}</strong>
+        </p>
+        {% for s in basket.stores %}
+        <div class="basket-row">
+            <span><strong>{{ s.store }}</strong> <span style="color:#888; font-size:0.78rem;">({{ s.count }} matched)</span></span>
+            <span>
+                £{{ "%.2f"|format(s.total) }}
+                {% if s.vs_you > 0 %}
+                    <span class="savings-positive">+£{{ "%.2f"|format(s.vs_you) }}</span>
+                {% elif s.vs_you < 0 %}
+                    <span class="savings-negative">-£{{ "%.2f"|format(s.vs_you|abs) }}</span>
+                {% endif %}
+            </span>
+        </div>
+        {% endfor %}
+        {% if not basket.stores %}
+        <p style="color:#888; font-size:0.85rem;">Scan prices first to see basket comparisons.</p>
+        {% endif %}
+    </div>
+
+    <!-- Competitor Heatmap -->
+    {% if heatmap.stores %}
+    <div class="section-title">Competitor Heatmap — Who's Cheapest?</div>
+    <div class="card" style="overflow-x: auto;">
+        <table class="heatmap-table">
+            <thead>
+                <tr>
+                    <th>Product</th>
+                    <th>You</th>
+                    {% for store in heatmap.stores %}<th>{{ store }}</th>{% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in heatmap.products %}
+                {% set all_prices = p.store_prices.values()|list %}
+                {% set min_price = all_prices|min if all_prices else 999 %}
+                {% set max_price = all_prices|max if all_prices else 0 %}
+                <tr>
+                    <td style="text-align:left; font-weight:600;">{{ p.name }}</td>
+                    <td class="{{ 'hm-cheapest' if p.my_price <= min_price else ('hm-expensive' if p.my_price >= max_price else 'hm-mid') }}">
+                        £{{ "%.2f"|format(p.my_price) }}
+                    </td>
+                    {% for store in heatmap.stores %}
+                    {% if store in p.store_prices %}
+                    {% set sp = p.store_prices[store] %}
+                    <td class="{{ 'hm-cheapest' if sp <= min_price else ('hm-expensive' if sp >= max_price else 'hm-mid') }}">
+                        £{{ "%.2f"|format(sp) }}
+                    </td>
+                    {% else %}<td>—</td>{% endif %}
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    <!-- Price Change Velocity -->
+    {% if velocity %}
+    <div class="section-title">Price Change Velocity</div>
+    <div class="card">
+        <p style="font-size:0.78rem; color:#888; margin-bottom:8px;">How often competitors change prices</p>
+        {% for v in velocity %}
+        <div class="velocity-row">
+            <span><strong>{{ v.store }}</strong></span>
+            <span><span class="change-count">{{ v.changes }}</span> changes · avg £{{ "%.2f"|format(v.avg_shift) }} shift</span>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Reorder Suggestions -->
+    {% if reorder %}
+    <div class="section-title">Reorder Suggestions</div>
+    <div class="card">
+        {% for r in reorder %}
+        <div class="reorder-item">
+            <div>
+                <strong>{{ r.name }}</strong>
+                <span style="font-size:0.75rem; color:#888;">{{ r.category }}</span>
+                <div style="font-size:0.78rem; color:#888;">Stock: {{ r.stock_status|replace('_',' ') }} · Margin: £{{ "%.2f"|format(r.margin) }}</div>
+            </div>
+            <span class="priority-{{ r.priority }}">{{ r.priority|upper }}</span>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Customer Savings -->
+    {% if basket.stores %}
+    <div class="section-title">Customer Savings Calculator</div>
+    <div class="customer-card">
+        <h3>Shop Local & Save!</h3>
+        {% set most_exp = basket.stores|last %}
+        {% if most_exp and most_exp.vs_you > 0 %}
+        <p>Customers save up to <strong>£{{ "%.2f"|format(most_exp.vs_you) }}</strong> vs {{ most_exp.store }} — plus no fuel or travel costs!</p>
+        {% else %}
+        <p>Competitive prices on {{ data.total_products }} everyday products</p>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Poster Link -->
+    <div class="card" style="text-align: center;">
+        <h3>Price Guarantee Poster</h3>
+        <p style="font-size:0.85rem; color:#888; margin-bottom:12px;">Generate a printable poster showing you price-check daily</p>
+        <a href="/poster" class="btn btn-primary" style="text-decoration:none;">Generate Poster</a>
+    </div>
+</div>
+{% endblock %}

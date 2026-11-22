@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Price Anchoring Poster — PriceTracker{% endblock %}
+{% block head %}
+<style>
+    .poster { max-width: 500px; margin: 0 auto; background: linear-gradient(135deg, #1a237e 0%, #0d47a1 100%); border-radius: 16px; padding: 32px 24px; color: #fff; }
+    .poster h2 { text-align: center; font-size: 1.6rem; margin-bottom: 4px; }
+    .poster .sub { text-align: center; font-size: 0.9rem; opacity: 0.8; margin-bottom: 24px; }
+    .poster-item { background: rgba(255,255,255,0.1); border-radius: 12px; padding: 14px 16px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+    .poster-item .name { font-weight: 600; font-size: 0.95rem; }
+    .poster-item .was { font-size: 0.8rem; opacity: 0.7; text-decoration: line-through; }
+    .poster-item .now { font-size: 1.3rem; font-weight: 800; color: #69f0ae; }
+    .poster-item .save-badge { background: #ff5722; padding: 2px 8px; border-radius: 10px; font-size: 0.75rem; font-weight: 700; }
+    .poster-footer { text-align: center; margin-top: 20px; font-size: 0.8rem; opacity: 0.7; }
+    @media print { .no-print { display: none; } body { background: #fff; } }
+</style>
+{% endblock %}
+
+{% block body %}
+<nav class="navbar no-print">
+    <h1>Price<span>Tracker</span></h1>
+    <div class="nav-links">
+        <a href="/insights">Back to Insights</a>
+    </div>
+</nav>
+
+<div class="container">
+    <div class="poster">
+        <h2>Why Pay More?</h2>
+        <p class="sub">{{ store_name }} — Your Local Savings</p>
+
+        {% for item in items %}
+        <div class="poster-item">
+            <div>
+                <div class="name">{{ item.name }}{% if item.size %} ({{ item.size }}){% endif %}</div>
+                <div class="was">Was £{{ "%.2f"|format(item.anchor_price) }} at {{ item.anchor_store }}</div>
+            </div>
+            <div style="text-align:right;">
+                <div class="now">£{{ "%.2f"|format(item.my_price) }}</div>
+                <div class="save-badge">SAVE {{ item.savings_pct }}%</div>
+            </div>
+        </div>
+        {% endfor %}
+
+        <div class="poster-footer">Prices compared via PriceTracker</div>
+    </div>
+
+    <div style="text-align:center;margin-top:16px;" class="no-print">
+        <button onclick="window.print()" class="btn btn-primary" style="padding:10px 24px;">Print Poster</button>
+        <a href="/insights" class="btn" style="padding:10px 24px;margin-left:8px;">Back</a>
+    </div>
+</div>
+{% endblock %}

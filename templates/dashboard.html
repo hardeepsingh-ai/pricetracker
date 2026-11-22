@@ -1,0 +1,332 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — PriceTracker{% endblock %}
+{% block head %}
+<style>
+    .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
+    .stat-card { background: white; border-radius: 12px; padding: 14px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+    .stat-number { font-size: 1.6rem; font-weight: 800; }
+    .stat-label { font-size: 0.65rem; color: #888; text-transform: uppercase; letter-spacing: 0.5px; }
+    .stat-green .stat-number { color: #27ae60; }
+    .stat-red .stat-number { color: #e74c3c; }
+    .stat-blue .stat-number { color: #3498db; }
+    .stat-purple .stat-number { color: #9b59b6; }
+    .stat-orange .stat-number { color: #e67e22; }
+
+    .profit-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
+    .profit-card { background: linear-gradient(135deg, #1a1a2e, #2d2d50); color: white; border-radius: 12px; padding: 14px; text-align: center; }
+    .profit-card .num { font-size: 1.4rem; font-weight: 800; color: #4ecdc4; }
+    .profit-card .label { font-size: 0.65rem; text-transform: uppercase; color: #aaa; }
+
+    .alert-banner { background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px; padding: 12px 16px; margin-bottom: 12px; font-size: 0.82rem; }
+    .alert-banner strong { color: #856404; }
+    .low-margin-banner { background: #fce4ec; border: 1px solid #ef9a9a; border-radius: 8px; padding: 12px 16px; margin-bottom: 12px; font-size: 0.82rem; }
+    .request-banner { background: #e3f2fd; border: 1px solid #90caf9; border-radius: 8px; padding: 10px 16px; margin-bottom: 12px; font-size: 0.82rem; }
+
+    .category-title { font-size: 0.95rem; font-weight: 700; padding: 8px 0; border-bottom: 2px solid #4ecdc4; margin-bottom: 8px; }
+    .product-row { padding: 12px 0; border-bottom: 1px solid #f0f0f0; }
+    .product-row:last-child { border-bottom: none; }
+    .product-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px; }
+    .product-name { font-weight: 700; font-size: 0.95rem; }
+    .product-size { font-size: 0.72rem; color: #888; margin-left: 4px; }
+    .my-price { font-size: 1.15rem; font-weight: 800; }
+
+    .margin-row { font-size: 0.78rem; color: #888; display: flex; gap: 10px; flex-wrap: wrap; }
+    .margin-positive { color: #27ae60; }
+    .margin-negative { color: #e74c3c; }
+
+    .elasticity-tag { font-size: 0.68rem; padding: 2px 6px; border-radius: 8px; font-weight: 600; }
+    .elasticity-high_opportunity { background: #e8f5e9; color: #2e7d32; }
+    .elasticity-overpriced { background: #fce4ec; color: #c62828; }
+    .elasticity-competitive { background: #e3f2fd; color: #1565c0; }
+
+    .recommended { font-size: 0.72rem; color: #9b59b6; font-weight: 600; }
+    .stock-badge { font-size: 0.65rem; padding: 2px 6px; border-radius: 8px; margin-left: 6px; }
+    .stock-in_stock { background: #e8f5e9; color: #2e7d32; }
+    .stock-low { background: #fff3e0; color: #e65100; }
+    .stock-out_of_stock { background: #fce4ec; color: #c62828; }
+
+    .competitor-list { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+    .competitor-tag { font-size: 0.75rem; padding: 3px 8px; border-radius: 20px; background: #f5f7fa; }
+    .competitor-tag.cheaper { background: #fff0f0; color: #e74c3c; }
+    .competitor-tag.expensive { background: #f0fff0; color: #27ae60; }
+    .competitor-tag.same { background: #f5f5f5; color: #888; }
+    .history-btn { font-size: 0.68rem; padding: 2px 6px; border-radius: 8px; background: #e3f2fd; color: #1565c0; border: none; cursor: pointer; margin-left: 6px; }
+
+    .btn-row { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+    .btn-row .btn { flex: 1; min-width: 120px; text-align: center; padding: 12px; font-size: 0.9rem; }
+
+    .last-scan { font-size: 0.78rem; color: #888; text-align: center; margin-top: 6px; }
+
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 200; justify-content: center; align-items: center; }
+    .modal-overlay.active { display: flex; }
+    .modal { background: white; border-radius: 12px; padding: 24px; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto; }
+    .modal h3 { margin-bottom: 12px; }
+    .modal-close { float: right; background: none; border: none; font-size: 1.4rem; cursor: pointer; color: #888; }
+
+    @media (max-width: 600px) {
+        .stats-row { grid-template-columns: repeat(2, 1fr); }
+        .profit-row { grid-template-columns: 1fr; }
+        .btn-row { flex-direction: column; }
+    }
+</style>
+{% endblock %}
+
+{% block body %}
+<nav class="navbar">
+    <h1>Price<span>Tracker</span></h1>
+    <div class="nav-links">
+        {% if is_owner %}<a href="/setup">Products</a>{% endif %}
+        <a href="/analytics">Analytics</a>
+        <a href="/stock">Stock</a>
+        {% if is_owner %}<a href="/team">Team</a>{% endif %}
+        {% if is_owner %}<a href="/stores">Stores</a>{% endif %}
+        <a href="/insights">Insights</a>
+        <a href="/loyalty">Loyalty</a>
+        <a href="/feedback">Feedback</a>
+        <a href="/report">Report</a>
+        <a href="/logout">Logout</a>
+    </div>
+</nav>
+
+<div class="container">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 2px;">
+        <h2 style="margin:0;">{{ data.shop_name }}</h2>
+        {% if is_owner and stores|length > 1 %}
+        <form style="margin:0;">
+            <select onchange="if(this.value) document.querySelector('#switch-'+this.value).click()" style="padding:4px 8px; border-radius:6px; border:1px solid #ddd; font-size:0.8rem; background:white;">
+                {% for s in stores %}
+                <option value="{{ s.id }}" {{ 'selected' if s.id == active_store }}>{{ s.name }}</option>
+                {% endfor %}
+            </select>
+        </form>
+        {% for s in stores %}
+        <form method="post" action="/stores/switch/{{ s.id }}" style="display:none;"><button type="submit" id="switch-{{ s.id }}"></button></form>
+        {% endfor %}
+        {% endif %}
+    </div>
+    <p style="color: #888; font-size: 0.82rem; margin-bottom: 12px;">
+        {{ data.total_products }} products tracked · Logged in as <strong>{{ username }}</strong>
+        {% if role != 'owner' %}<span style="background:#e3f2fd; color:#1565c0; padding:1px 6px; border-radius:6px; font-size:0.7rem;">{{ role }}</span>{% endif %}
+    </p>
+
+    <div class="btn-row">
+        {% if role != 'viewer' %}
+        <button class="btn btn-primary" id="scanBtn" onclick="runScan()">Scan Prices</button>
+        {% endif %}
+        <a href="/analytics" class="btn btn-outline" style="text-decoration:none;">Analytics</a>
+        <a href="/api/export-csv" class="btn btn-outline" style="text-decoration:none;">Export CSV</a>
+        <a href="/report" class="btn btn-outline" style="text-decoration:none;">PDF Report</a>
+    </div>
+
+    {% if data.alerts %}
+    <div class="alert-banner">
+        <strong>Price Drops!</strong>
+        {% for a in data.alerts %}
+        <div>{{ a.store }}: <strong>{{ a.product }}</strong> £{{ "%.2f"|format(a.old_price) }} → £{{ "%.2f"|format(a.new_price) }} (-£{{ "%.2f"|format(a.drop) }})</div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if data.low_margin_alerts %}
+    <div class="low-margin-banner">
+        <strong>Low Margin Warning!</strong>
+        {% for a in data.low_margin_alerts %}
+        <div>{{ a.name }}: only {{ a.margin_pct }}% margin</div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if is_owner and data.price_requests %}
+    <div class="request-banner">
+        <strong>{{ data.price_requests|length }} pending price change request(s)</strong> — <a href="/team">Review now</a>
+    </div>
+    {% endif %}
+
+    <div class="stats-row">
+        <div class="stat-card stat-green"><div class="stat-number">{{ data.cheaper_count }}</div><div class="stat-label">Cheaper</div></div>
+        <div class="stat-card stat-red"><div class="stat-number">{{ data.expensive_count }}</div><div class="stat-label">Expensive</div></div>
+        <div class="stat-card stat-purple"><div class="stat-number">{{ data.avg_margin_pct }}%</div><div class="stat-label">Avg Margin</div></div>
+        <div class="stat-card stat-blue"><div class="stat-number">{{ data.total_products }}</div><div class="stat-label">Products</div></div>
+    </div>
+
+    {% if data.daily_profit > 0 %}
+    <div class="profit-row">
+        <div class="profit-card"><div class="num">£{{ "%.2f"|format(data.daily_profit) }}</div><div class="label">Daily Profit</div></div>
+        <div class="profit-card"><div class="num">£{{ "%.2f"|format(data.weekly_profit) }}</div><div class="label">Weekly Profit</div></div>
+        <div class="profit-card"><div class="num">£{{ "%.2f"|format(data.monthly_profit) }}</div><div class="label">Monthly Profit</div></div>
+    </div>
+    {% endif %}
+
+    {% if data.last_scan != "Never" %}
+    <p class="last-scan">Last scan: {{ data.last_scan[:16] }}</p>
+    {% endif %}
+
+    {% if data.categories %}
+    {% for cat_name, items in data.categories.items() %}
+    <div style="margin-bottom: 20px;">
+        <div class="category-title">{{ cat_name }} ({{ items|length }})</div>
+        <div class="card" style="margin-top: 0;">
+            {% for item in items %}
+            <div class="product-row">
+                <div class="product-header">
+                    <div style="flex:1; min-width:0;">
+                        <div class="product-name">
+                            {{ item.name }}
+                            {% if item.brand %}<span class="product-size" style="color:#e65100;">{{ item.brand }}</span>{% endif %}
+                            {% if item.size %}<span class="product-size">{{ item.size }}</span>{% endif %}
+                            <button class="history-btn" onclick="showHistory('{{ item.name }}')">History</button>
+                            {% if item.stock_status != 'in_stock' %}
+                            <span class="stock-badge stock-{{ item.stock_status }}">{{ item.stock_status|replace('_',' ') }}</span>
+                            {% endif %}
+                        </div>
+                        <div class="margin-row">
+                            {% if item.cost_price %}
+                            <span>Cost: £{{ "%.2f"|format(item.cost_price) }}</span>
+                            <span class="{{ 'margin-positive' if item.margin > 0 else 'margin-negative' }}">
+                                Margin: £{{ "%.2f"|format(item.margin) }} ({{ item.margin_pct }}%)
+                            </span>
+                            {% endif %}
+                            {% if item.units_per_day %}
+                            <span>{{ item.units_per_day }}/day · £{{ "%.2f"|format(item.daily_profit) }}/day</span>
+                            {% endif %}
+                        </div>
+                        {% if item.recommended_price %}
+                        <div style="margin-top: 2px;">
+                            <span class="recommended">AI Suggested: £{{ "%.2f"|format(item.recommended_price) }}</span>
+                            <span class="elasticity-tag elasticity-{{ item.elasticity }}">{{ item.recommendation_reason }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div style="text-align: right; white-space: nowrap;">
+                        <div class="my-price">£{{ "%.2f"|format(item.my_price) }}</div>
+                        <div class="status-{{ item.status }}" style="font-size: 0.78rem;">
+                            {% if item.status == 'cheapest' %}✓ Cheapest
+                            {% elif item.status == 'most_expensive' %}✗ Most expensive
+                            {% elif item.status == 'mid_range' %}~ Mid range
+                            {% else %}No data{% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% if item.competitors %}
+                <div class="competitor-list">
+                    {% for comp in item.competitors %}
+                    <span class="competitor-tag {% if comp.price < item.my_price %}cheaper{% elif comp.price > item.my_price %}expensive{% else %}same{% endif %}">
+                        <strong>{{ comp.store }}</strong> · £{{ "%.2f"|format(comp.price) }}
+                    </span>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+    {% elif not data.comparisons %}
+    <div class="card" style="text-align: center; padding: 40px;">
+        <p style="font-size: 1.1rem; color: #888;">No products yet.</p>
+        <a href="/setup" class="btn btn-primary" style="margin-top: 12px;">Add Products</a>
+    </div>
+    {% endif %}
+</div>
+
+<div class="modal-overlay" id="historyModal">
+    <div class="modal">
+        <button class="modal-close" onclick="closeModal()">&times;</button>
+        <h3 id="historyTitle">Price History</h3>
+        <canvas id="historyChart" width="550" height="300"></canvas>
+    </div>
+</div>
+
+{% if not is_owner %}
+<div class="modal-overlay" id="requestModal">
+    <div class="modal">
+        <button class="modal-close" onclick="document.getElementById('requestModal').classList.remove('active')">&times;</button>
+        <h3>Request Price Change</h3>
+        <label>Product</label>
+        <select id="reqProduct" class="input">
+            {% for item in data.comparisons %}<option>{{ item.name }}</option>{% endfor %}
+        </select>
+        <label>New Price (£)</label>
+        <input id="reqPrice" type="number" step="0.01" class="input">
+        <label>Reason</label>
+        <input id="reqReason" type="text" class="input" placeholder="e.g. Competitor dropped price">
+        <button class="btn btn-primary" onclick="submitRequest()">Submit Request</button>
+    </div>
+</div>
+{% endif %}
+
+<script>
+async function runScan() {
+    const btn = document.getElementById('scanBtn');
+    btn.textContent = 'Scanning...';
+    btn.disabled = true;
+    try {
+        const resp = await fetch('/api/scan', { method: 'POST' });
+        const data = await resp.json();
+        if (data.success) window.location.reload();
+        else { btn.textContent = 'Scan failed'; btn.disabled = false; }
+    } catch (e) { btn.textContent = 'Scan failed'; btn.disabled = false; }
+}
+
+async function showHistory(name) {
+    document.getElementById('historyModal').classList.add('active');
+    document.getElementById('historyTitle').textContent = name + ' — Price History';
+    const resp = await fetch('/api/price-history/' + encodeURIComponent(name));
+    const data = await resp.json();
+    drawChart(data.history);
+}
+function closeModal() { document.getElementById('historyModal').classList.remove('active'); }
+
+function drawChart(history) {
+    const canvas = document.getElementById('historyChart');
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (!history.length) {
+        ctx.fillStyle = '#888'; ctx.font = '14px sans-serif'; ctx.textAlign = 'center';
+        ctx.fillText('No history yet — scan more to build data', canvas.width / 2, canvas.height / 2);
+        return;
+    }
+    const storeData = {};
+    const colors = ['#e74c3c','#3498db','#27ae60','#f39c12','#9b59b6','#1abc9c','#e67e22','#2c3e50'];
+    for (const entry of history) for (const p of entry.prices) {
+        if (!storeData[p.store]) storeData[p.store] = [];
+        storeData[p.store].push({ date: entry.timestamp, price: p.price });
+    }
+    const allPrices = history.flatMap(h => h.prices.map(p => p.price));
+    const minP = Math.min(...allPrices)*0.9, maxP = Math.max(...allPrices)*1.1, range = maxP-minP||1;
+    const pad = {top:20,right:20,bottom:40,left:50}, w = canvas.width-pad.left-pad.right, h = canvas.height-pad.top-pad.bottom;
+    ctx.strokeStyle = '#eee'; ctx.lineWidth = 1;
+    for (let i=0;i<=4;i++) {
+        const y = pad.top+(h*i/4);
+        ctx.beginPath(); ctx.moveTo(pad.left,y); ctx.lineTo(pad.left+w,y); ctx.stroke();
+        ctx.fillStyle='#888'; ctx.font='11px sans-serif'; ctx.textAlign='right';
+        ctx.fillText('£'+(maxP-(range*i/4)).toFixed(2), pad.left-5, y+4);
+    }
+    let ci=0, legendX=pad.left;
+    for (const [store, points] of Object.entries(storeData)) {
+        const color = colors[ci%colors.length]; ctx.strokeStyle=color; ctx.lineWidth=2; ctx.beginPath();
+        points.forEach((p,i) => {
+            const x=pad.left+(i/Math.max(points.length-1,1))*w;
+            const y=pad.top+h-((p.price-minP)/range)*h;
+            if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+        });
+        ctx.stroke(); ctx.fillStyle=color; ctx.font='10px sans-serif'; ctx.textAlign='left';
+        ctx.fillRect(legendX, canvas.height-10-6, 10, 10);
+        ctx.fillText(store, legendX+14, canvas.height-10+3);
+        legendX += ctx.measureText(store).width+28; ci++;
+    }
+}
+
+async function submitRequest() {
+    const resp = await fetch('/api/price-request', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            product_name: document.getElementById('reqProduct').value,
+            new_price: parseFloat(document.getElementById('reqPrice').value),
+            reason: document.getElementById('reqReason').value,
+        })
+    });
+    if ((await resp.json()).success) { alert('Request submitted!'); document.getElementById('requestModal').classList.remove('active'); }
+}
+</script>
+{% endblock %}
