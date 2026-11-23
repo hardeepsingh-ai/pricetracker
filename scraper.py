@@ -43,18 +43,45 @@ def _match_score(card_title: str, product_name: str, brand: str, size: str) -> f
     if word_ratio < 0.5:
         return 0
 
-    score = word_ratio * 60
+    score = word_ratio * 50
 
-    if brand:
-        if _normalise(brand) in title_norm:
-            score += 25
-        else:
-            score *= 0.5
+    # Brand is just a reference — small bonus, no penalty
+    if brand and _normalise(brand) in title_norm:
+        score += 10
 
+    # Size/quantity is critical — must match the right pack/volume
     if size:
-        size_norm = re.sub(r"[^a-z0-9]", "", size.lower())
-        if size_norm in re.sub(r"[^a-z0-9]", "", title_norm):
-            score += 15
+        size_lower = size.lower().strip()
+        title_clean = re.sub(r"[^a-z0-9. ]", "", title_norm)
+
+        # Extract numeric value and unit from size (e.g. "6 pack" -> 6, "500ml" -> 500ml)
+        num_match = re.match(r"(\d+\.?\d*)\s*(pack|pk|x|ml|l|g|kg|litre|liter|pint|pt)?s?$", size_lower)
+        size_matched = False
+
+        if num_match:
+            num = num_match.group(1)
+            unit = (num_match.group(2) or "").rstrip("s")
+
+            if unit in ("pack", "pk", "x", ""):
+                # For packs: match if the number appears in title (e.g. "6" in "6 Free Range Eggs")
+                title_numbers = re.findall(r"\b" + re.escape(num) + r"\b", title_clean)
+                if title_numbers:
+                    size_matched = True
+            else:
+                # For units: match "500ml", "2l", "250g" etc.
+                size_compact = re.sub(r"[^a-z0-9]", "", size_lower)
+                if size_compact in re.sub(r"[^a-z0-9]", "", title_clean):
+                    size_matched = True
+        else:
+            # Fallback: direct substring match
+            size_compact = re.sub(r"[^a-z0-9]", "", size_lower)
+            if size_compact in re.sub(r"[^a-z0-9]", "", title_clean):
+                size_matched = True
+
+        if size_matched:
+            score += 35
+        else:
+            score *= 0.3
 
     return score
 
