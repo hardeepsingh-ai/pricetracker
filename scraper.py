@@ -120,6 +120,7 @@ async def scrape_trolley_prices(product_name: str, size: str = "", brand: str = 
             "product_name": product_title[:45],
             "price": float(match.group(1)),
             "store": store,
+            "url": product_url,
             "scraped_at": datetime.utcnow().isoformat(),
         })
 

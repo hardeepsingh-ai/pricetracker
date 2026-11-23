@@ -211,9 +211,15 @@
                 {% if item.competitors %}
                 <div class="competitor-list">
                     {% for comp in item.competitors %}
+                    {% if comp.url %}
+                    <a href="{{ comp.url }}" target="_blank" rel="noopener" class="competitor-tag {% if comp.price < item.my_price %}cheaper{% elif comp.price > item.my_price %}expensive{% else %}same{% endif %}" style="text-decoration:none;color:inherit;">
+                        <strong>{{ comp.store }}</strong> · £{{ "%.2f"|format(comp.price) }} 🔗
+                    </a>
+                    {% else %}
                     <span class="competitor-tag {% if comp.price < item.my_price %}cheaper{% elif comp.price > item.my_price %}expensive{% else %}same{% endif %}">
                         <strong>{{ comp.store }}</strong> · £{{ "%.2f"|format(comp.price) }}
                     </span>
+                    {% endif %}
                     {% endfor %}
                 </div>
                 {% endif %}
