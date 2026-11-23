@@ -59,39 +59,61 @@ def _match_score(card_title: str, product_name: str, brand: str, size: str) -> f
     return score
 
 
-async def scrape_trolley_prices(product_name: str, size: str = "", brand: str = "") -> list[dict]:
-    """Search Trolley with brand + product + size, pick the best matching result, scrape per-store prices."""
-    parts = []
-    if brand:
-        parts.append(brand)
-    parts.append(product_name)
-    if size:
-        parts.append(size)
-    query = " ".join(parts)
-    search_url = f"https://www.trolley.co.uk/search/?q={query.replace(' ', '+')}"
+async def _find_best_match(client, search_url: str, product_name: str, brand: str, size: str):
+    """Search Trolley and return (best_card, best_score) or (None, 0)."""
+    resp = await client.get(search_url, headers=HEADERS)
+    if resp.status_code != 200:
+        return None, 0
+    soup = BeautifulSoup(resp.text, "html.parser")
+    cards = soup.find_all("div", class_="product-item")
+    if not cards:
+        return None, 0
+    best_card = None
+    best_score = 0
+    for card in cards[:10]:
+        link = card.find("a")
+        if not link:
+            continue
+        card_title = link.get_text(" ", strip=True)
+        score = _match_score(card_title, product_name, brand, size)
+        if score > best_score:
+            best_score = score
+            best_card = card
+    return best_card, best_score
 
+
+async def scrape_trolley_prices(product_name: str, size: str = "", brand: str = "") -> list[dict]:
+    """Search Trolley, pick the best matching result, scrape per-store prices.
+    Tries with brand first, then without brand if no good match found."""
     try:
         async with httpx.AsyncClient(follow_redirects=True, timeout=15) as client:
-            resp = await client.get(search_url, headers=HEADERS)
-            if resp.status_code != 200:
-                return []
+            # Try 1: search with brand + product + size
+            parts = []
+            if brand:
+                parts.append(brand)
+            parts.append(product_name)
+            if size:
+                parts.append(size)
+            query = " ".join(parts)
+            search_url = f"https://www.trolley.co.uk/search/?q={query.replace(' ', '+')}"
 
-            soup = BeautifulSoup(resp.text, "html.parser")
-            cards = soup.find_all("div", class_="product-item")
-            if not cards:
-                return []
+            best_card, best_score = await _find_best_match(client, search_url, product_name, brand, size)
 
-            best_card = None
-            best_score = 0
-            for card in cards[:10]:
-                link = card.find("a")
-                if not link:
-                    continue
-                card_title = link.get_text(" ", strip=True)
-                score = _match_score(card_title, product_name, brand, size)
-                if score > best_score:
-                    best_score = score
-                    best_card = card
+            # Try 2: search without brand if no good match
+            if (not best_card or best_score < 30) and brand:
+                # Strip brand words from product name for a generic search
+                generic_name = product_name
+                brand_lower = brand.lower()
+                if brand_lower in generic_name.lower():
+                    generic_name = re.sub(re.escape(brand_lower), "", generic_name, flags=re.I).strip()
+                if not generic_name:
+                    generic_name = product_name
+                parts2 = [generic_name]
+                if size:
+                    parts2.append(size)
+                query2 = " ".join(parts2)
+                search_url2 = f"https://www.trolley.co.uk/search/?q={query2.replace(' ', '+')}"
+                best_card, best_score = await _find_best_match(client, search_url2, generic_name, "", size)
 
             if not best_card or best_score < 30:
                 return []
