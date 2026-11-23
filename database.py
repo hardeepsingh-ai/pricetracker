@@ -30,6 +30,18 @@ SEED_FILE = Path(__file__).parent / "data" / "db.seed.json"
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
+import logging
+logger = logging.getLogger("pricetracker.db")
+
+_use_pg = False
+if DATABASE_URL:
+    try:
+        import psycopg2
+        _use_pg = True
+        logger.info("PostgreSQL mode enabled")
+    except ImportError:
+        logger.warning("psycopg2 not installed, falling back to JSON file")
+
 
 def _pg_connect():
     import psycopg2
@@ -124,8 +136,12 @@ def _ensure_db():
 
 
 def _load():
-    if DATABASE_URL:
-        return _pg_load()
+    if _use_pg:
+        try:
+            return _pg_load()
+        except Exception as e:
+            logger.error(f"PostgreSQL load failed: {e}")
+            raise
     _ensure_db()
     db = json.loads(DB_FILE.read_text())
     for k, v in DEFAULTS.items():
@@ -134,8 +150,12 @@ def _load():
 
 
 def _save(data):
-    if DATABASE_URL:
-        return _pg_save(data)
+    if _use_pg:
+        try:
+            return _pg_save(data)
+        except Exception as e:
+            logger.error(f"PostgreSQL save failed: {e}")
+            raise
     _ensure_db()
     DB_FILE.write_text(json.dumps(data, indent=2, default=str))
 

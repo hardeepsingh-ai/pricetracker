@@ -34,8 +34,23 @@ from database import (
     get_store_layout_heatmap, get_trust_dashboard,
 )
 from scraper import scrape_trolley_prices, SAMPLE_PRODUCTS, CATEGORIES
+import logging
+logging.basicConfig(level=logging.INFO)
 
 app = FastAPI(title="PriceTracker")
+
+
+@app.get("/health")
+async def health():
+    import database
+    info = {"status": "ok", "use_pg": database._use_pg, "db_url_set": bool(database.DATABASE_URL)}
+    try:
+        db = database._load()
+        info["users_count"] = len(db.get("users", {}))
+    except Exception as e:
+        info["status"] = "error"
+        info["error"] = str(e)
+    return info
 templates = Jinja2Templates(directory="templates")
 
 os.makedirs("static", exist_ok=True)
