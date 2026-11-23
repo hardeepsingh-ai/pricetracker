@@ -1242,3 +1242,580 @@ def get_feedback(username: str) -> dict:
         "avg_range": avg_range, "avg_service": avg_service,
         "nps": nps, "recent": fb_list[-10:][::-1],
     }
+
+
+# --- 11. AI Product Recommendation Engine ---
+
+def get_ai_recommendations(username: str) -> list[dict]:
+    txns = get_transactions(username)
+    products = get_my_products(username)
+    sales = get_daily_sales(username)
+    product_names = [p["name"] for p in products]
+    product_map = {p["name"]: p for p in products}
+
+    # Build co-purchase matrix from transactions
+    co_purchase = {}
+    customer_history = {}
+    for txn in txns:
+        items = [i["name"] for i in txn.get("items", [])]
+        phone = txn.get("customer", "walk-in")
+        if phone != "walk-in":
+            customer_history.setdefault(phone, set()).update(items)
+        for i, item_a in enumerate(items):
+            for item_b in items[i + 1:]:
+                pair = tuple(sorted([item_a, item_b]))
+                co_purchase[pair] = co_purchase.get(pair, 0) + 1
+
+    # Content-based: recommend by category + price range
+    category_groups = {}
+    for p in products:
+        cat = p.get("category", "Other")
+        category_groups.setdefault(cat, []).append(p)
+
+    recommendations = []
+
+    # Collaborative filtering: for each customer, recommend products bought by similar customers
+    for phone, bought in list(customer_history.items())[:20]:
+        not_bought = [n for n in product_names if n not in bought]
+        scored = []
+        for candidate in not_bought:
+            score = 0
+            for owned in bought:
+                pair = tuple(sorted([owned, candidate]))
+                score += co_purchase.get(pair, 0)
+            if score > 0:
+                p = product_map.get(candidate, {})
+                scored.append({
+                    "customer": phone,
+                    "product": candidate,
+                    "score": score,
+                    "category": p.get("category", "Other"),
+                    "price": p.get("price", 0),
+                    "method": "collaborative",
+                    "reason": f"Customers who bought similar items also bought {candidate}",
+                })
+        scored.sort(key=lambda x: -x["score"])
+        recommendations.extend(scored[:3])
+
+    # Content-based fallback: cross-category recommendations
+    for cat, items in category_groups.items():
+        if len(items) >= 2:
+            top = sorted(items, key=lambda p: sales.get(p["name"], {}).get("units", 0), reverse=True)
+            if top:
+                for other_cat, other_items in category_groups.items():
+                    if other_cat != cat and other_items:
+                        best_other = max(other_items, key=lambda p: sales.get(p["name"], {}).get("units", 0))
+                        recommendations.append({
+                            "customer": "all",
+                            "product": best_other["name"],
+                            "score": sales.get(best_other["name"], {}).get("units", 0),
+                            "category": other_cat,
+                            "price": best_other["price"],
+                            "method": "content",
+                            "reason": f"Popular in {other_cat} — recommend to {cat} buyers",
+                        })
+
+    seen = set()
+    unique = []
+    for r in recommendations:
+        key = (r["customer"], r["product"])
+        if key not in seen:
+            seen.add(key)
+            unique.append(r)
+    unique.sort(key=lambda x: -x["score"])
+    return unique[:20]
+
+
+# --- 12. Sentiment Analysis on Feedback ---
+
+def get_sentiment_analysis(username: str) -> dict:
+    store_key = _store_key(username)
+    db = _load()
+    fb_list = db.get("feedback", {}).get(store_key, [])
+
+    positive_words = {"great", "excellent", "good", "love", "amazing", "fantastic", "best", "happy",
+                      "friendly", "clean", "fresh", "wonderful", "brilliant", "perfect", "lovely"}
+    negative_words = {"bad", "poor", "terrible", "awful", "expensive", "dirty", "rude", "slow",
+                      "worst", "horrible", "overpriced", "stale", "cold", "broken", "disappointed"}
+    neutral_words = {"ok", "okay", "fine", "average", "normal", "decent", "alright"}
+
+    sentiments = {"positive": 0, "negative": 0, "neutral": 0}
+    themes = {}
+    analyzed = []
+
+    for fb in fb_list:
+        comment = fb.get("comment", "").lower()
+        overall = fb.get("overall", 5)
+
+        pos_count = sum(1 for w in positive_words if w in comment)
+        neg_count = sum(1 for w in negative_words if w in comment)
+
+        if overall >= 8 or pos_count > neg_count:
+            sentiment = "positive"
+        elif overall <= 4 or neg_count > pos_count:
+            sentiment = "negative"
+        else:
+            sentiment = "neutral"
+
+        sentiments[sentiment] += 1
+
+        # Extract themes
+        theme_map = {
+            "price": {"price", "expensive", "cheap", "cost", "value", "money", "overpriced", "affordable"},
+            "service": {"service", "staff", "friendly", "rude", "helpful", "slow", "fast", "polite"},
+            "quality": {"quality", "fresh", "stale", "good", "bad", "excellent", "poor", "product"},
+            "range": {"range", "selection", "variety", "choice", "options", "stock"},
+            "cleanliness": {"clean", "dirty", "tidy", "messy", "hygiene"},
+        }
+        detected_themes = []
+        for theme, keywords in theme_map.items():
+            if any(k in comment for k in keywords):
+                detected_themes.append(theme)
+                themes.setdefault(theme, {"positive": 0, "negative": 0, "neutral": 0})
+                themes[theme][sentiment] += 1
+
+        analyzed.append({
+            "comment": fb.get("comment", ""),
+            "overall": overall,
+            "sentiment": sentiment,
+            "themes": detected_themes,
+            "timestamp": fb.get("timestamp", ""),
+        })
+
+    total = sum(sentiments.values()) or 1
+    sentiment_score = round(((sentiments["positive"] - sentiments["negative"]) / total) * 100)
+
+    top_issues = []
+    for theme, counts in themes.items():
+        if counts["negative"] > 0:
+            top_issues.append({"theme": theme, "negative_count": counts["negative"],
+                               "total": sum(counts.values()),
+                               "severity": round(counts["negative"] / max(sum(counts.values()), 1) * 100)})
+    top_issues.sort(key=lambda x: -x["severity"])
+
+    return {
+        "sentiments": {k: {"count": v, "pct": round(v / total * 100, 1)} for k, v in sentiments.items()},
+        "sentiment_score": sentiment_score,
+        "themes": themes,
+        "top_issues": top_issues[:5],
+        "analyzed": analyzed[-20:][::-1],
+        "total_analyzed": len(fb_list),
+    }
+
+
+# --- 13. Predictive Purchase Analytics ---
+
+def get_predictive_analytics(username: str) -> dict:
+    txns = get_transactions(username)
+    products = get_my_products(username)
+    sales = get_daily_sales(username)
+
+    customer_patterns = {}
+    for txn in txns:
+        phone = txn.get("customer", "walk-in")
+        if phone == "walk-in":
+            continue
+        if phone not in customer_patterns:
+            customer_patterns[phone] = {"items": {}, "visits": [], "total_spend": 0}
+        customer_patterns[phone]["visits"].append(txn.get("timestamp", ""))
+        customer_patterns[phone]["total_spend"] += txn.get("total", 0)
+        for item in txn.get("items", []):
+            customer_patterns[phone]["items"][item["name"]] = customer_patterns[phone]["items"].get(item["name"], 0) + 1
+
+    predictions = []
+    for phone, pattern in list(customer_patterns.items())[:20]:
+        top_items = sorted(pattern["items"].items(), key=lambda x: -x[1])[:5]
+        avg_spend = round(pattern["total_spend"] / max(len(pattern["visits"]), 1), 2)
+
+        # Predict next purchase based on frequency
+        predicted_items = []
+        for item_name, count in top_items:
+            confidence = min(round((count / max(len(pattern["visits"]), 1)) * 100), 95)
+            predicted_items.append({"name": item_name, "confidence": confidence, "past_purchases": count})
+
+        predictions.append({
+            "customer": phone,
+            "visit_count": len(pattern["visits"]),
+            "avg_spend": avg_spend,
+            "predicted_items": predicted_items,
+            "predicted_spend": avg_spend,
+        })
+
+    # Product-level demand forecast
+    product_demand = []
+    for product in products:
+        name = product["name"]
+        units = sales.get(name, {}).get("units", 0)
+        txn_count = sum(1 for t in txns for i in t.get("items", []) if i.get("name") == name)
+        trend = "growing" if txn_count > units else "stable" if txn_count == units else "declining"
+        forecast_7d = units * 7
+        forecast_30d = units * 30
+        product_demand.append({
+            "name": name, "daily_units": units, "txn_frequency": txn_count,
+            "trend": trend, "forecast_7d": forecast_7d, "forecast_30d": forecast_30d,
+            "category": product.get("category", "Other"),
+        })
+    product_demand.sort(key=lambda x: -x["daily_units"])
+
+    return {
+        "customer_predictions": predictions,
+        "product_demand": product_demand,
+        "total_customers": len(customer_patterns),
+        "avg_basket_size": round(sum(t.get("total", 0) for t in txns) / max(len(txns), 1), 2),
+    }
+
+
+# --- 14. Price Elasticity Modelling ---
+
+def get_price_elasticity(username: str) -> list[dict]:
+    products = get_my_products(username)
+    all_prices = get_all_competitor_prices(username)
+    sales = get_daily_sales(username)
+    owner = get_owner(username)
+    db = _load()
+    history = [h for h in db.get("price_history", []) if h["username"] == owner]
+
+    results = []
+    for product in products:
+        name = product["name"]
+        my_price = product["price"]
+        cost = product.get("cost_price")
+        units = sales.get(name, {}).get("units", 0)
+        comp = all_prices.get(name, {}).get("prices", [])
+        if not comp:
+            continue
+
+        avg_comp = sum(c["price"] for c in comp) / len(comp)
+        cheapest = min(c["price"] for c in comp)
+        price_diff_pct = round(((my_price - avg_comp) / avg_comp) * 100, 1) if avg_comp else 0
+
+        # Estimate elasticity from price position and sales
+        if price_diff_pct < -10 and units > 5:
+            elasticity = "elastic"
+            elasticity_score = round(abs(price_diff_pct) * 0.1, 2)
+        elif price_diff_pct > 10 and units > 0:
+            elasticity = "inelastic"
+            elasticity_score = round(abs(price_diff_pct) * 0.05, 2)
+        else:
+            elasticity = "unit_elastic"
+            elasticity_score = 1.0
+
+        # Revenue optimisation
+        current_revenue = round(my_price * units, 2)
+        optimal_price = round(avg_comp * 0.95, 2) if elasticity == "elastic" else round(avg_comp * 1.05, 2)
+        if cost:
+            optimal_price = max(optimal_price, cost * 1.1)
+        estimated_units = round(units * (1 + (my_price - optimal_price) / my_price * elasticity_score))
+        estimated_units = max(estimated_units, 0)
+        optimal_revenue = round(optimal_price * estimated_units, 2)
+
+        results.append({
+            "name": name, "category": product.get("category", "Other"),
+            "current_price": my_price, "cost_price": cost,
+            "avg_competitor": round(avg_comp, 2), "cheapest_competitor": round(cheapest, 2),
+            "price_diff_pct": price_diff_pct,
+            "daily_units": units, "elasticity": elasticity,
+            "elasticity_score": elasticity_score,
+            "current_revenue": current_revenue,
+            "optimal_price": optimal_price,
+            "estimated_optimal_units": estimated_units,
+            "optimal_revenue": optimal_revenue,
+            "revenue_change": round(optimal_revenue - current_revenue, 2),
+        })
+    results.sort(key=lambda x: -abs(x["revenue_change"]))
+    return results
+
+
+# --- 15. Customer Churn Prediction ---
+
+def get_churn_prediction(username: str) -> dict:
+    loyalty = get_all_loyalty_customers(username)
+    txns = get_transactions(username)
+    now = datetime.utcnow()
+
+    customer_activity = {}
+    for txn in txns:
+        phone = txn.get("customer", "walk-in")
+        if phone == "walk-in":
+            continue
+        ts = txn.get("timestamp", "")
+        if phone not in customer_activity:
+            customer_activity[phone] = {"last_visit": ts, "visits": 0, "total_spend": 0}
+        customer_activity[phone]["visits"] += 1
+        customer_activity[phone]["total_spend"] += txn.get("total", 0)
+        if ts > customer_activity[phone]["last_visit"]:
+            customer_activity[phone]["last_visit"] = ts
+
+    # Merge loyalty data
+    for phone, data in loyalty.items():
+        if phone not in customer_activity:
+            customer_activity[phone] = {
+                "last_visit": data.get("history", [{}])[-1].get("timestamp", "") if data.get("history") else "",
+                "visits": data.get("visits", 0),
+                "total_spend": data.get("total_spend", 0),
+            }
+
+    at_risk = []
+    churned = []
+    active = []
+
+    for phone, data in customer_activity.items():
+        last = data.get("last_visit", "")
+        try:
+            last_dt = datetime.fromisoformat(last) if last else now - timedelta(days=999)
+        except (ValueError, TypeError):
+            last_dt = now - timedelta(days=999)
+        days_since = (now - last_dt).days
+        avg_spend = round(data["total_spend"] / max(data["visits"], 1), 2)
+
+        status = "active"
+        churn_risk = 0
+        if days_since > 30:
+            status = "churned"
+            churn_risk = 95
+        elif days_since > 14:
+            status = "at_risk"
+            churn_risk = 70
+        elif days_since > 7:
+            status = "cooling"
+            churn_risk = 40
+        else:
+            churn_risk = 10
+
+        entry = {
+            "phone": phone, "visits": data["visits"],
+            "total_spend": round(data["total_spend"], 2),
+            "avg_spend": avg_spend,
+            "days_since_visit": days_since,
+            "status": status, "churn_risk": churn_risk,
+            "loyalty_points": loyalty.get(phone, {}).get("points", 0),
+        }
+
+        if status == "at_risk" or status == "cooling":
+            entry["win_back"] = f"Send {phone} a 10% discount — last visited {days_since} days ago"
+            at_risk.append(entry)
+        elif status == "churned":
+            entry["win_back"] = f"Win-back campaign: {phone} hasn't visited in {days_since} days"
+            churned.append(entry)
+        else:
+            active.append(entry)
+
+    at_risk.sort(key=lambda x: -x["churn_risk"])
+    churned.sort(key=lambda x: -x["days_since_visit"])
+
+    return {
+        "at_risk": at_risk,
+        "churned": churned[:10],
+        "active_count": len(active),
+        "at_risk_count": len(at_risk),
+        "churned_count": len(churned),
+        "total_customers": len(customer_activity),
+        "retention_rate": round(len(active) / max(len(customer_activity), 1) * 100, 1),
+    }
+
+
+# --- 16. Personalised Promotions Generator ---
+
+def get_personalised_promotions(username: str) -> list[dict]:
+    txns = get_transactions(username)
+    products = get_my_products(username)
+    sales = get_daily_sales(username)
+    loyalty = get_all_loyalty_customers(username)
+    product_map = {p["name"]: p for p in products}
+
+    customer_prefs = {}
+    for txn in txns:
+        phone = txn.get("customer", "walk-in")
+        if phone == "walk-in":
+            continue
+        if phone not in customer_prefs:
+            customer_prefs[phone] = {"categories": {}, "total_spend": 0, "items": {}}
+        customer_prefs[phone]["total_spend"] += txn.get("total", 0)
+        for item in txn.get("items", []):
+            name = item.get("name", "")
+            customer_prefs[phone]["items"][name] = customer_prefs[phone]["items"].get(name, 0) + 1
+            cat = product_map.get(name, {}).get("category", "Other")
+            customer_prefs[phone]["categories"][cat] = customer_prefs[phone]["categories"].get(cat, 0) + 1
+
+    promotions = []
+    for phone, prefs in list(customer_prefs.items())[:20]:
+        top_cat = max(prefs["categories"], key=prefs["categories"].get) if prefs["categories"] else "Other"
+        top_items = sorted(prefs["items"].items(), key=lambda x: -x[1])[:3]
+        loy = loyalty.get(phone, {})
+        points = loy.get("points", 0)
+        visits = loy.get("visits", 0)
+
+        # Generate personalised deal
+        never_bought = [p for p in products if p["name"] not in prefs["items"] and p.get("category") == top_cat]
+        upsell = never_bought[0]["name"] if never_bought else None
+
+        promo_type = "loyalty_reward" if points > 50 else "category_deal" if visits > 3 else "welcome_back"
+        if promo_type == "loyalty_reward":
+            deal = f"Redeem {min(points, 20)} points for £{min(points, 20) * 0.1:.2f} off your next {top_cat} purchase"
+        elif promo_type == "category_deal":
+            deal = f"Buy 2 {top_cat} items, get 10% off — tailored for you"
+        else:
+            deal = f"Welcome back! 15% off any {top_cat} item this visit"
+
+        promotions.append({
+            "customer": phone,
+            "top_category": top_cat,
+            "favourite_items": [i[0] for i in top_items],
+            "visits": visits,
+            "points": points,
+            "total_spend": round(prefs["total_spend"], 2),
+            "promo_type": promo_type,
+            "deal": deal,
+            "upsell_product": upsell,
+        })
+
+    # Store-wide promotions based on slow movers
+    slow_movers = [p for p in products if sales.get(p["name"], {}).get("units", 0) < 2]
+    for sm in slow_movers[:5]:
+        promotions.append({
+            "customer": "all",
+            "top_category": sm.get("category", "Other"),
+            "favourite_items": [],
+            "visits": 0, "points": 0,
+            "total_spend": 0,
+            "promo_type": "clearance",
+            "deal": f"Special offer: {sm['name']} now 20% off — was £{sm['price']:.2f}, now £{sm['price'] * 0.8:.2f}",
+            "upsell_product": None,
+        })
+
+    return promotions
+
+
+# --- 17. Store Layout Heatmap ---
+
+def get_store_layout_heatmap(username: str) -> dict:
+    products = get_my_products(username)
+    sales = get_daily_sales(username)
+    impulse = get_impulse_buy_suggestions(username)
+
+    zones = {
+        "entrance": {"name": "Entrance Zone", "products": [], "total_revenue": 0},
+        "checkout": {"name": "Checkout Counter", "products": [], "total_revenue": 0},
+        "aisle_centre": {"name": "Centre Aisles", "products": [], "total_revenue": 0},
+        "back_wall": {"name": "Back Wall", "products": [], "total_revenue": 0},
+        "end_cap": {"name": "End Caps", "products": [], "total_revenue": 0},
+        "window": {"name": "Window Display", "products": [], "total_revenue": 0},
+    }
+
+    # Categorise products into optimal zones
+    for product in products:
+        name = product["name"]
+        category = product.get("category", "Other")
+        units = sales.get(name, {}).get("units", 0)
+        price = product["price"]
+        revenue = round(units * price, 2)
+        cost = product.get("cost_price", 0) or 0
+        margin = round(price - cost, 2)
+        margin_pct = round((margin / price) * 100, 1) if price > 0 else 0
+
+        # Zone assignment logic
+        imp = next((i for i in impulse if i["name"] == name), None)
+        impulse_score = imp["impulse_score"] if imp else 0
+
+        if impulse_score >= 5:
+            zone = "checkout"
+        elif category in ("Dairy", "Bread & Bakery"):
+            zone = "back_wall"  # staples at back to draw customers through
+        elif category in ("Drinks",) and units > 5:
+            zone = "entrance"
+        elif margin_pct > 40:
+            zone = "end_cap"  # high margin items on end caps
+        elif units > 10:
+            zone = "entrance"
+        else:
+            zone = "aisle_centre"
+
+        zones[zone]["products"].append({
+            "name": name, "category": category,
+            "daily_units": units, "revenue": revenue,
+            "margin_pct": margin_pct, "impulse_score": impulse_score,
+        })
+        zones[zone]["total_revenue"] += revenue
+
+    # Sort products within each zone by revenue
+    for zone in zones.values():
+        zone["products"].sort(key=lambda x: -x["revenue"])
+        zone["product_count"] = len(zone["products"])
+
+    total_revenue = sum(z["total_revenue"] for z in zones.values())
+    for zone in zones.values():
+        zone["revenue_share"] = round(zone["total_revenue"] / max(total_revenue, 1) * 100, 1)
+
+    return {
+        "zones": zones,
+        "total_revenue": round(total_revenue, 2),
+        "total_products": len(products),
+        "layout_tips": [
+            "Place staples (milk, bread) at the back to draw customers through the store",
+            "High-margin impulse items belong at checkout and end caps",
+            "Drinks near the entrance catch customers on arrival",
+            "Rotate end-cap promotions weekly for best results",
+            "Eye-level shelf space = highest sales per unit",
+        ],
+    }
+
+
+# --- 18. Trust & Transparency Dashboard ---
+
+def get_trust_dashboard(username: str) -> dict:
+    fb = get_feedback(username)
+    loyalty = get_all_loyalty_customers(username)
+    txns = get_transactions(username)
+    products = get_my_products(username)
+    all_prices = get_all_competitor_prices(username)
+
+    total_customers = len(loyalty)
+    total_transactions = len(txns)
+    products_with_prices = sum(1 for p in products if get_all_competitor_prices(username).get(p["name"]))
+
+    # Price transparency score
+    price_transparency = round(products_with_prices / max(len(products), 1) * 100)
+
+    # Data collection summary
+    data_points = {
+        "transaction_history": {"collected": total_transactions > 0, "purpose": "Personalise recommendations and track purchasing trends", "can_delete": True},
+        "loyalty_data": {"collected": total_customers > 0, "purpose": "Reward repeat customers with points and exclusive deals", "can_delete": True},
+        "feedback_responses": {"collected": fb["count"] > 0, "purpose": "Improve store service, range, and pricing", "can_delete": True},
+        "price_comparisons": {"collected": products_with_prices > 0, "purpose": "Show you the best deals vs. supermarkets", "can_delete": False},
+    }
+
+    # Fairness metrics
+    cheaper_count = 0
+    total_compared = 0
+    for product in products:
+        comp = all_prices.get(product["name"], {}).get("prices", [])
+        if comp:
+            total_compared += 1
+            avg = sum(c["price"] for c in comp) / len(comp)
+            if product["price"] <= avg:
+                cheaper_count += 1
+
+    fairness_score = round(cheaper_count / max(total_compared, 1) * 100)
+
+    # Trust score composite
+    trust_score = round((price_transparency * 0.3 + fairness_score * 0.4 + min(fb.get("nps", 0) + 100, 200) / 2 * 0.3))
+
+    return {
+        "trust_score": min(trust_score, 100),
+        "price_transparency": price_transparency,
+        "fairness_score": fairness_score,
+        "nps": fb.get("nps", 0),
+        "data_points": data_points,
+        "total_customers": total_customers,
+        "total_transactions": total_transactions,
+        "products_compared": products_with_prices,
+        "total_products": len(products),
+        "cheaper_count": cheaper_count,
+        "privacy_principles": [
+            "We never sell your data to third parties",
+            "All feedback is anonymous — we can't identify who said what",
+            "Loyalty data is used only to reward you with better deals",
+            "You can request deletion of your data at any time",
+            "Price comparisons use publicly available supermarket prices",
+        ],
+    }

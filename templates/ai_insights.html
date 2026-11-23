@@ -1,0 +1,344 @@
+{% extends "base.html" %}
+{% block title %}AI Insights — PriceTracker{% endblock %}
+{% block head %}
+<style>
+    .ai-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 768px) { .ai-grid { grid-template-columns: 1fr; } }
+    .ai-card { background: #fff; border-radius: 12px; padding: 18px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+    .ai-card h3 { margin: 0 0 4px 0; font-size: 1rem; display: flex; align-items: center; gap: 8px; }
+    .ai-card .subtitle { font-size: 0.75rem; color: #888; margin-bottom: 12px; }
+    .ai-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.7rem; font-weight: 700; }
+    .badge-green { background: #e8f5e9; color: #2e7d32; }
+    .badge-red { background: #ffebee; color: #c62828; }
+    .badge-orange { background: #fff3e0; color: #e65100; }
+    .badge-blue { background: #e3f2fd; color: #1565c0; }
+    .badge-purple { background: #f3e5f5; color: #6a1b9a; }
+    .mini-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+    .mini-table th { text-align: left; font-size: 0.7rem; color: #888; text-transform: uppercase; padding: 4px 6px; border-bottom: 2px solid #f0f0f0; }
+    .mini-table td { padding: 6px; border-bottom: 1px solid #f5f5f5; }
+    .mini-table tr:last-child td { border: none; }
+    .score-circle { width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; font-weight: 800; color: #fff; margin: 0 auto 8px; }
+    .bar { height: 8px; border-radius: 4px; background: #f0f0f0; overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: 4px; }
+    .sentiment-row { display: flex; gap: 6px; margin-bottom: 6px; align-items: center; font-size: 0.8rem; }
+    .sentiment-label { width: 60px; text-align: right; font-weight: 600; }
+    .sentiment-bar { flex: 1; }
+    .zone-block { background: #f8f9fa; border-radius: 8px; padding: 10px; margin-bottom: 8px; }
+    .zone-block h4 { margin: 0 0 4px 0; font-size: 0.85rem; }
+    .zone-products { font-size: 0.75rem; color: #666; }
+    .promo-card { background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; border-radius: 8px; padding: 10px 12px; margin-bottom: 6px; font-size: 0.8rem; }
+    .promo-card .promo-type { font-size: 0.65rem; opacity: 0.8; text-transform: uppercase; letter-spacing: 1px; }
+    .promo-card .promo-deal { font-weight: 700; margin-top: 2px; }
+    .trust-meter { text-align: center; padding: 12px; }
+    .trust-principles { list-style: none; padding: 0; }
+    .trust-principles li { padding: 6px 0; font-size: 0.8rem; border-bottom: 1px solid #f0f0f0; }
+    .trust-principles li::before { content: "✓ "; color: #27ae60; font-weight: 700; }
+    .data-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; font-size: 0.8rem; border-bottom: 1px solid #f5f5f5; }
+    .full-width { grid-column: 1 / -1; }
+    .section-title { font-size: 1.1rem; font-weight: 800; margin: 20px 0 10px; padding-bottom: 6px; border-bottom: 3px solid #4ecdc4; }
+    .section-title:first-of-type { margin-top: 0; }
+    .churn-status { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; }
+    .churn-active { background: #27ae60; }
+    .churn-cooling { background: #f39c12; }
+    .churn-risk { background: #e67e22; }
+    .churn-churned { background: #e74c3c; }
+    .elasticity-tag { font-size: 0.7rem; padding: 1px 6px; border-radius: 4px; }
+    .elastic { background: #e3f2fd; color: #1565c0; }
+    .inelastic { background: #fce4ec; color: #c62828; }
+    .unit_elastic { background: #f3e5f5; color: #6a1b9a; }
+</style>
+{% endblock %}
+
+{% block body %}
+<nav class="navbar">
+    <h1>Price<span>Tracker</span></h1>
+    <div class="nav-links">
+        <a href="/dashboard">Dashboard</a>
+        <a href="/insights">Insights</a>
+        <a href="/loyalty">Loyalty</a>
+        <a href="/feedback">Feedback</a>
+        <a href="/logout">Logout</a>
+    </div>
+</nav>
+
+<div class="container">
+    <h2 style="margin-bottom:2px;">AI-Powered Insights</h2>
+    <p style="color:#888;font-size:0.82rem;margin-bottom:16px;">{{ store_name }} — Consumer Behaviour Intelligence powered by AI</p>
+
+    <!-- Section 1: AI Recommendations -->
+    <div class="section-title">1. AI Product Recommendations</div>
+    <div class="ai-grid">
+        <div class="ai-card full-width">
+            <h3>🤖 Recommendation Engine</h3>
+            <p class="subtitle">Collaborative + content-based filtering — "customers who bought X also bought Y"</p>
+            {% if recommendations %}
+            <table class="mini-table">
+                <tr><th>Customer</th><th>Recommended Product</th><th>Method</th><th>Score</th><th>Reason</th></tr>
+                {% for r in recommendations[:10] %}
+                <tr>
+                    <td>{{ r.customer[:12] }}</td>
+                    <td><strong>{{ r.product }}</strong></td>
+                    <td><span class="ai-badge {% if r.method == 'collaborative' %}badge-blue{% else %}badge-purple{% endif %}">{{ r.method }}</span></td>
+                    <td>{{ r.score }}</td>
+                    <td style="font-size:0.72rem;color:#666;">{{ r.reason }}</td>
+                </tr>
+                {% endfor %}
+            </table>
+            {% else %}
+            <p style="color:#aaa;text-align:center;padding:16px;">Record more transactions to generate AI recommendations</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Section 2: Sentiment Analysis -->
+    <div class="section-title">2. Sentiment Analysis (NLP)</div>
+    <div class="ai-grid">
+        <div class="ai-card">
+            <h3>📊 Sentiment Breakdown</h3>
+            <p class="subtitle">NLP analysis of {{ sentiment.total_analyzed }} feedback responses</p>
+            <div style="text-align:center;margin-bottom:12px;">
+                <div class="score-circle" style="background:{% if sentiment.sentiment_score > 30 %}#27ae60{% elif sentiment.sentiment_score > 0 %}#f39c12{% else %}#e74c3c{% endif %}">
+                    {{ sentiment.sentiment_score }}
+                </div>
+                <div style="font-size:0.75rem;color:#888;">Sentiment Score</div>
+            </div>
+            <div class="sentiment-row">
+                <span class="sentiment-label" style="color:#27ae60;">Positive</span>
+                <div class="sentiment-bar"><div class="bar"><div class="bar-fill" style="width:{{ sentiment.sentiments.positive.pct }}%;background:#27ae60;"></div></div></div>
+                <span style="font-size:0.75rem;width:35px;">{{ sentiment.sentiments.positive.pct }}%</span>
+            </div>
+            <div class="sentiment-row">
+                <span class="sentiment-label" style="color:#888;">Neutral</span>
+                <div class="sentiment-bar"><div class="bar"><div class="bar-fill" style="width:{{ sentiment.sentiments.neutral.pct }}%;background:#bbb;"></div></div></div>
+                <span style="font-size:0.75rem;width:35px;">{{ sentiment.sentiments.neutral.pct }}%</span>
+            </div>
+            <div class="sentiment-row">
+                <span class="sentiment-label" style="color:#e74c3c;">Negative</span>
+                <div class="sentiment-bar"><div class="bar"><div class="bar-fill" style="width:{{ sentiment.sentiments.negative.pct }}%;background:#e74c3c;"></div></div></div>
+                <span style="font-size:0.75rem;width:35px;">{{ sentiment.sentiments.negative.pct }}%</span>
+            </div>
+        </div>
+        <div class="ai-card">
+            <h3>🔍 Theme Analysis</h3>
+            <p class="subtitle">Auto-detected topics from customer comments</p>
+            {% if sentiment.top_issues %}
+            <table class="mini-table">
+                <tr><th>Theme</th><th>Mentions</th><th>Negative %</th></tr>
+                {% for issue in sentiment.top_issues %}
+                <tr>
+                    <td style="text-transform:capitalize;">{{ issue.theme }}</td>
+                    <td>{{ issue.total }}</td>
+                    <td><span class="ai-badge {% if issue.severity > 50 %}badge-red{% elif issue.severity > 25 %}badge-orange{% else %}badge-green{% endif %}">{{ issue.severity }}%</span></td>
+                </tr>
+                {% endfor %}
+            </table>
+            {% else %}
+            <p style="color:#aaa;text-align:center;padding:16px;">Collect more feedback to see theme analysis</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Section 3: Predictive Analytics -->
+    <div class="section-title">3. Predictive Purchase Analytics</div>
+    <div class="ai-grid">
+        <div class="ai-card">
+            <h3>🔮 Customer Purchase Predictions</h3>
+            <p class="subtitle">ML-based forecasting of next likely purchases</p>
+            {% if predictive.customer_predictions %}
+            <table class="mini-table">
+                <tr><th>Customer</th><th>Predicted Items</th><th>Avg Spend</th></tr>
+                {% for cp in predictive.customer_predictions[:8] %}
+                <tr>
+                    <td>{{ cp.customer[:12] }}</td>
+                    <td>{% for item in cp.predicted_items[:2] %}<span class="ai-badge badge-blue">{{ item.name[:15] }} ({{ item.confidence }}%)</span> {% endfor %}</td>
+                    <td>£{{ "%.2f"|format(cp.avg_spend) }}</td>
+                </tr>
+                {% endfor %}
+            </table>
+            {% else %}
+            <p style="color:#aaa;text-align:center;padding:16px;">Record customer transactions to enable predictions</p>
+            {% endif %}
+        </div>
+        <div class="ai-card">
+            <h3>📈 Product Demand Forecast</h3>
+            <p class="subtitle">7-day and 30-day demand projections</p>
+            {% if predictive.product_demand %}
+            <table class="mini-table">
+                <tr><th>Product</th><th>Daily</th><th>7d Forecast</th><th>30d</th><th>Trend</th></tr>
+                {% for pd in predictive.product_demand[:8] %}
+                <tr>
+                    <td>{{ pd.name[:18] }}</td>
+                    <td>{{ pd.daily_units }}</td>
+                    <td>{{ pd.forecast_7d }}</td>
+                    <td>{{ pd.forecast_30d }}</td>
+                    <td><span class="ai-badge {% if pd.trend == 'growing' %}badge-green{% elif pd.trend == 'declining' %}badge-red{% else %}badge-blue{% endif %}">{{ pd.trend }}</span></td>
+                </tr>
+                {% endfor %}
+            </table>
+            {% else %}
+            <p style="color:#aaa;text-align:center;padding:16px;">Add daily sales data to see forecasts</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Section 4: Price Elasticity -->
+    <div class="section-title">4. Price Elasticity Modelling</div>
+    <div class="ai-card full-width" style="margin-bottom:16px;">
+        <h3>💰 Revenue Optimisation</h3>
+        <p class="subtitle">AI-estimated price sensitivity per product — find optimal prices to maximise revenue</p>
+        {% if elasticity %}
+        <table class="mini-table">
+            <tr><th>Product</th><th>Current</th><th>Optimal</th><th>Elasticity</th><th>Current Rev</th><th>Optimal Rev</th><th>Change</th></tr>
+            {% for e in elasticity[:10] %}
+            <tr>
+                <td>{{ e.name[:18] }}</td>
+                <td>£{{ "%.2f"|format(e.current_price) }}</td>
+                <td>£{{ "%.2f"|format(e.optimal_price) }}</td>
+                <td><span class="elasticity-tag {{ e.elasticity }}">{{ e.elasticity.replace('_', ' ') }}</span></td>
+                <td>£{{ "%.2f"|format(e.current_revenue) }}</td>
+                <td>£{{ "%.2f"|format(e.optimal_revenue) }}</td>
+                <td style="color:{% if e.revenue_change > 0 %}#27ae60{% elif e.revenue_change < 0 %}#e74c3c{% else %}#888{% endif %};font-weight:700;">
+                    {% if e.revenue_change > 0 %}+{% endif %}£{{ "%.2f"|format(e.revenue_change) }}
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+        {% else %}
+        <p style="color:#aaa;text-align:center;padding:16px;">Add sales data and scan competitor prices to see elasticity</p>
+        {% endif %}
+    </div>
+
+    <!-- Section 5: Churn Prediction -->
+    <div class="section-title">5. Customer Churn Prediction</div>
+    <div class="ai-grid">
+        <div class="ai-card">
+            <h3>⚠️ At-Risk Customers</h3>
+            <p class="subtitle">{{ churn.at_risk_count }} customers showing signs of leaving</p>
+            {% if churn.at_risk %}
+            <table class="mini-table">
+                <tr><th>Customer</th><th>Days Away</th><th>Risk</th><th>Win-Back</th></tr>
+                {% for c in churn.at_risk[:6] %}
+                <tr>
+                    <td><span class="churn-status churn-risk"></span>{{ c.phone[:12] }}</td>
+                    <td>{{ c.days_since_visit }}d</td>
+                    <td><span class="ai-badge badge-orange">{{ c.churn_risk }}%</span></td>
+                    <td style="font-size:0.72rem;color:#666;">{{ c.win_back[:40] }}...</td>
+                </tr>
+                {% endfor %}
+            </table>
+            {% else %}
+            <p style="color:#aaa;text-align:center;padding:16px;">No at-risk customers detected</p>
+            {% endif %}
+        </div>
+        <div class="ai-card">
+            <h3>📊 Retention Overview</h3>
+            <p class="subtitle">Customer lifecycle health</p>
+            <div style="text-align:center;margin:12px 0;">
+                <div class="score-circle" style="background:{% if churn.retention_rate > 70 %}#27ae60{% elif churn.retention_rate > 40 %}#f39c12{% else %}#e74c3c{% endif %}">
+                    {{ churn.retention_rate }}%
+                </div>
+                <div style="font-size:0.75rem;color:#888;">Retention Rate</div>
+            </div>
+            <div class="data-row"><span><span class="churn-status churn-active"></span> Active</span><strong>{{ churn.active_count }}</strong></div>
+            <div class="data-row"><span><span class="churn-status churn-risk"></span> At Risk</span><strong>{{ churn.at_risk_count }}</strong></div>
+            <div class="data-row"><span><span class="churn-status churn-churned"></span> Churned</span><strong>{{ churn.churned_count }}</strong></div>
+            <div class="data-row"><span>Total Customers</span><strong>{{ churn.total_customers }}</strong></div>
+        </div>
+    </div>
+
+    <!-- Section 6: Personalised Promotions -->
+    <div class="section-title">6. Personalised Promotions</div>
+    <div class="ai-card full-width" style="margin-bottom:16px;">
+        <h3>🎯 AI-Generated Deals</h3>
+        <p class="subtitle">Hyper-personalised promotions based on each customer's purchase history</p>
+        {% if promotions %}
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+            {% for p in promotions[:8] %}
+            <div class="promo-card">
+                <div class="promo-type">{{ p.promo_type.replace('_', ' ') }} — {{ p.customer[:12] }}</div>
+                <div class="promo-deal">{{ p.deal }}</div>
+                {% if p.upsell_product %}<div style="font-size:0.7rem;opacity:0.8;margin-top:4px;">Try also: {{ p.upsell_product }}</div>{% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p style="color:#aaa;text-align:center;padding:16px;">Record customer transactions to generate personalised deals</p>
+        {% endif %}
+    </div>
+
+    <!-- Section 7: Store Layout Heatmap -->
+    <div class="section-title">7. Store Layout Optimisation</div>
+    <div class="ai-grid">
+        <div class="ai-card">
+            <h3>🗺️ Optimal Product Placement</h3>
+            <p class="subtitle">AI-suggested zones for maximum revenue</p>
+            {% for zone_id, zone in layout.zones.items() %}
+            {% if zone.products %}
+            <div class="zone-block">
+                <h4>{{ zone.name }} <span class="ai-badge badge-blue">{{ zone.product_count }} items</span> <span style="float:right;font-size:0.75rem;color:#27ae60;">£{{ "%.2f"|format(zone.total_revenue) }}/day</span></h4>
+                <div class="zone-products">
+                    {% for p in zone.products[:4] %}{{ p.name }}{% if not loop.last %}, {% endif %}{% endfor %}
+                    {% if zone.products|length > 4 %}... +{{ zone.products|length - 4 }} more{% endif %}
+                </div>
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+        <div class="ai-card">
+            <h3>💡 Layout Tips</h3>
+            <p class="subtitle">Evidence-based store design principles</p>
+            <ul style="padding-left:16px;font-size:0.82rem;line-height:1.8;">
+                {% for tip in layout.layout_tips %}
+                <li>{{ tip }}</li>
+                {% endfor %}
+            </ul>
+            <div style="margin-top:12px;padding:10px;background:#f0fdf4;border-radius:8px;font-size:0.8rem;">
+                <strong>Total Daily Revenue:</strong> £{{ "%.2f"|format(layout.total_revenue) }} across {{ layout.total_products }} products
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 8: Trust & Transparency -->
+    <div class="section-title">8. Trust & Transparency Dashboard</div>
+    <div class="ai-grid">
+        <div class="ai-card">
+            <h3>🛡️ Trust Score</h3>
+            <p class="subtitle">Composite score based on transparency, fairness & satisfaction</p>
+            <div class="trust-meter">
+                <div class="score-circle" style="background:{% if trust.trust_score > 70 %}#27ae60{% elif trust.trust_score > 40 %}#f39c12{% else %}#e74c3c{% endif %};width:80px;height:80px;font-size:1.8rem;">
+                    {{ trust.trust_score }}
+                </div>
+                <div style="font-size:0.85rem;font-weight:600;margin-bottom:8px;">Trust Score</div>
+            </div>
+            <div class="data-row"><span>Price Transparency</span><strong>{{ trust.price_transparency }}%</strong></div>
+            <div class="data-row"><span>Fairness (cheaper/equal vs avg)</span><strong>{{ trust.fairness_score }}%</strong></div>
+            <div class="data-row"><span>Customer NPS</span><strong>{{ trust.nps }}</strong></div>
+            <div class="data-row"><span>Products Compared</span><strong>{{ trust.products_compared }}/{{ trust.total_products }}</strong></div>
+        </div>
+        <div class="ai-card">
+            <h3>🔒 Data Privacy & Usage</h3>
+            <p class="subtitle">What we collect and why — full transparency</p>
+            {% for name, dp in trust.data_points.items() %}
+            <div class="data-row">
+                <span>
+                    <strong style="text-transform:capitalize;">{{ name.replace('_', ' ') }}</strong>
+                    <br><span style="font-size:0.7rem;color:#888;">{{ dp.purpose }}</span>
+                </span>
+                <span>
+                    {% if dp.collected %}<span class="ai-badge badge-green">Active</span>{% else %}<span class="ai-badge" style="background:#f5f5f5;color:#999;">Not yet</span>{% endif %}
+                    {% if dp.can_delete %}<span style="font-size:0.65rem;color:#888;"> · Deletable</span>{% endif %}
+                </span>
+            </div>
+            {% endfor %}
+            <div style="margin-top:12px;">
+                <h4 style="font-size:0.85rem;margin-bottom:6px;">Our Privacy Principles</h4>
+                <ul class="trust-principles">
+                    {% for principle in trust.privacy_principles %}
+                    <li>{{ principle }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

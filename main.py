@@ -29,6 +29,9 @@ from database import (
     get_all_loyalty_customers, redeem_loyalty, get_basket_affinity,
     get_local_price_index, get_seasonal_forecast,
     submit_feedback, get_feedback,
+    get_ai_recommendations, get_sentiment_analysis, get_predictive_analytics,
+    get_price_elasticity, get_churn_prediction, get_personalised_promotions,
+    get_store_layout_heatmap, get_trust_dashboard,
 )
 from scraper import scrape_trolley_prices, SAMPLE_PRODUCTS, CATEGORIES
 
@@ -610,6 +613,33 @@ async def anchoring_poster(request: Request):
         "request": request, "username": username,
         "store_name": get_active_store_name(username),
         "items": anchoring[:8],
+    })
+
+
+@app.get("/ai-insights", response_class=HTMLResponse)
+async def ai_insights_page(request: Request):
+    username = get_current_user(request)
+    if not username:
+        return RedirectResponse("/login", 303)
+    recommendations = get_ai_recommendations(username)
+    sentiment = get_sentiment_analysis(username)
+    predictive = get_predictive_analytics(username)
+    elasticity = get_price_elasticity(username)
+    churn = get_churn_prediction(username)
+    promotions = get_personalised_promotions(username)
+    layout = get_store_layout_heatmap(username)
+    trust = get_trust_dashboard(username)
+    return templates.TemplateResponse("ai_insights.html", {
+        "request": request, "username": username,
+        "store_name": get_active_store_name(username),
+        "recommendations": recommendations,
+        "sentiment": sentiment,
+        "predictive": predictive,
+        "elasticity": elasticity,
+        "churn": churn,
+        "promotions": promotions,
+        "layout": layout,
+        "trust": trust,
     })
 
 
