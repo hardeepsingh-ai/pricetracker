@@ -26,10 +26,17 @@ DEFAULTS = {
 }
 
 
+SEED_FILE = Path(__file__).parent / "data" / "db.seed.json"
+
+
 def _ensure_db():
     DB_FILE.parent.mkdir(exist_ok=True)
     if not DB_FILE.exists():
-        DB_FILE.write_text(json.dumps(DEFAULTS, indent=2))
+        if SEED_FILE.exists():
+            import shutil
+            shutil.copy2(SEED_FILE, DB_FILE)
+        else:
+            DB_FILE.write_text(json.dumps(DEFAULTS, indent=2))
 
 
 def _load():

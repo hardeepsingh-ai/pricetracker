@@ -45,7 +45,8 @@
             <div class="stock-row">
                 <div>
                     <strong>{{ p.name }}</strong>
-                    {% set st = stock.get(p.name, 'in_stock') %}
+                    {% set raw_st = stock.get(p.name, 'in_stock') %}
+                    {% set st = raw_st.status if raw_st is mapping else raw_st %}
                     <span class="status-badge status-{{ st }}">{{ st|replace('_',' ') }}</span>
                 </div>
                 <form method="post" action="/stock/update" class="form-inline" style="margin:0;">
@@ -89,7 +90,7 @@
             {% for name, units in sales.items() %}
             <div class="stock-row">
                 <strong>{{ name }}</strong>
-                <span>{{ units }} units</span>
+                <span>{% if units is mapping %}{{ units.units }}{% else %}{{ units }}{% endif %} units</span>
             </div>
             {% endfor %}
         </div>

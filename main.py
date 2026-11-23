@@ -548,7 +548,7 @@ async def loyalty_add(request: Request, phone: str = Form(...), amount: float = 
         return RedirectResponse("/login", 303)
     points = int(amount)
     add_loyalty_points(username, phone, points, amount)
-    log_activity(username, f"Added {points} loyalty points for {phone}")
+    log_activity(None, username, username, "loyalty_add", f"Added {points} loyalty points for {phone}")
     return RedirectResponse("/loyalty", 303)
 
 
@@ -559,7 +559,7 @@ async def loyalty_redeem(request: Request, phone: str = Form(...), points: int =
         return RedirectResponse("/login", 303)
     success = redeem_loyalty(username, phone, points)
     if success:
-        log_activity(username, f"Redeemed {points} points for {phone}")
+        log_activity(None, username, username, "loyalty_redeem", f"Redeemed {points} points for {phone}")
     return RedirectResponse("/loyalty", 303)
 
 
@@ -573,7 +573,7 @@ async def record_sale(request: Request, customer_phone: str = Form("walk-in"), i
     if customer_phone != "walk-in":
         pts = int(total)
         add_loyalty_points(username, customer_phone, pts, total)
-    log_activity(username, f"Sale recorded: £{total:.2f} for {customer_phone}")
+    log_activity(None, username, username, "sale_recorded", f"Sale recorded: £{total:.2f} for {customer_phone}")
     return RedirectResponse("/insights", 303)
 
 

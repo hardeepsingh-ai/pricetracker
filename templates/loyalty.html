@@ -73,7 +73,7 @@
             <div>
                 <div class="customer-phone">{{ phone }}</div>
                 <div class="customer-meta">
-                    {{ data.visits }} visits · £{{ "%.2f"|format(data.total_spend) }} total · Avg basket £{{ "%.2f"|format(data.avg_basket) }}
+                    {{ data.visits }} visits · £{{ "%.2f"|format(data.total_spend) }} total · Avg basket £{{ "%.2f"|format(data.total_spend / data.visits if data.visits > 0 else 0) }}
                 </div>
                 <div class="stamps">
                     {% for i in range(10) %}
