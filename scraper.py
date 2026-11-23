@@ -22,23 +22,41 @@ CATEGORIES = [
 
 
 def _normalise(text: str) -> str:
-    return re.sub(r"[^a-z0-9]", "", text.lower())
+    return re.sub(r"[^a-z0-9 ]", "", text.lower()).strip()
 
 
-def _size_matches(title: str, size: str) -> bool:
-    if not size:
-        return True
-    norm_size = _normalise(size)
-    norm_title = _normalise(title)
-    return norm_size in norm_title
+def _tokenise(text: str) -> set[str]:
+    stop = {"the", "a", "an", "of", "and", "for", "in", "with", "to", "at"}
+    return {w for w in _normalise(text).split() if w and w not in stop}
 
 
-def _brand_matches(title: str, brand: str) -> bool:
-    if not brand:
-        return True
-    norm_brand = _normalise(brand)
-    norm_title = _normalise(title)
-    return norm_brand in norm_title
+def _match_score(card_title: str, product_name: str, brand: str, size: str) -> float:
+    title_norm = _normalise(card_title)
+    title_tokens = _tokenise(card_title)
+    product_tokens = _tokenise(product_name)
+
+    if not product_tokens:
+        return 0
+
+    matched = product_tokens & title_tokens
+    word_ratio = len(matched) / len(product_tokens)
+    if word_ratio < 0.5:
+        return 0
+
+    score = word_ratio * 60
+
+    if brand:
+        if _normalise(brand) in title_norm:
+            score += 25
+        else:
+            score *= 0.5
+
+    if size:
+        size_norm = re.sub(r"[^a-z0-9]", "", size.lower())
+        if size_norm in re.sub(r"[^a-z0-9]", "", title_norm):
+            score += 15
+
+    return score
 
 
 async def scrape_trolley_prices(product_name: str, size: str = "", brand: str = "") -> list[dict]:
@@ -64,20 +82,19 @@ async def scrape_trolley_prices(product_name: str, size: str = "", brand: str = 
                 return []
 
             best_card = None
+            best_score = 0
             for card in cards[:10]:
                 link = card.find("a")
                 if not link:
                     continue
                 card_title = link.get_text(" ", strip=True)
-                if brand and not _brand_matches(card_title, brand):
-                    continue
-                if size and not _size_matches(card_title, size):
-                    continue
-                best_card = card
-                break
+                score = _match_score(card_title, product_name, brand, size)
+                if score > best_score:
+                    best_score = score
+                    best_card = card
 
-            if not best_card:
-                best_card = cards[0]
+            if not best_card or best_score < 30:
+                return []
 
             link = best_card.find("a")
             if not link or not link.get("href"):
