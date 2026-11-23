@@ -28,6 +28,90 @@ DEFAULTS = {
 
 SEED_FILE = Path(__file__).parent / "data" / "db.seed.json"
 
+DATABASE_URL = os.environ.get("DATABASE_URL")
+
+
+def _pg_connect():
+    import psycopg2
+    url = DATABASE_URL
+    if url.startswith("postgres://"):
+        url = url.replace("postgres://", "postgresql://", 1)
+    return psycopg2.connect(url)
+
+
+def _pg_ensure_table():
+    conn = _pg_connect()
+    try:
+        cur = conn.cursor()
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS app_data (
+                id INTEGER PRIMARY KEY DEFAULT 1,
+                data JSONB NOT NULL,
+                CHECK (id = 1)
+            )
+        """)
+        conn.commit()
+        cur.close()
+    finally:
+        conn.close()
+
+
+_pg_table_ready = False
+
+
+def _pg_load():
+    global _pg_table_ready
+    if not _pg_table_ready:
+        _pg_ensure_table()
+        _pg_table_ready = True
+    conn = _pg_connect()
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT data FROM app_data WHERE id = 1")
+        row = cur.fetchone()
+        cur.close()
+        if row:
+            db = row[0]
+            if isinstance(db, str):
+                db = json.loads(db)
+            for k, v in DEFAULTS.items():
+                db.setdefault(k, type(v)())
+            return db
+        seed = DEFAULTS.copy()
+        if SEED_FILE.exists():
+            seed = json.loads(SEED_FILE.read_text())
+            for k, v in DEFAULTS.items():
+                seed.setdefault(k, type(v)())
+        cur = conn.cursor()
+        cur.execute(
+            "INSERT INTO app_data (id, data) VALUES (1, %s)",
+            [json.dumps(seed, default=str)]
+        )
+        conn.commit()
+        cur.close()
+        return seed
+    finally:
+        conn.close()
+
+
+def _pg_save(data):
+    global _pg_table_ready
+    if not _pg_table_ready:
+        _pg_ensure_table()
+        _pg_table_ready = True
+    conn = _pg_connect()
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            "INSERT INTO app_data (id, data) VALUES (1, %s) "
+            "ON CONFLICT (id) DO UPDATE SET data = EXCLUDED.data",
+            [json.dumps(data, default=str)]
+        )
+        conn.commit()
+        cur.close()
+    finally:
+        conn.close()
+
 
 def _ensure_db():
     DB_FILE.parent.mkdir(exist_ok=True)
@@ -40,6 +124,8 @@ def _ensure_db():
 
 
 def _load():
+    if DATABASE_URL:
+        return _pg_load()
     _ensure_db()
     db = json.loads(DB_FILE.read_text())
     for k, v in DEFAULTS.items():
@@ -48,6 +134,8 @@ def _load():
 
 
 def _save(data):
+    if DATABASE_URL:
+        return _pg_save(data)
     _ensure_db()
     DB_FILE.write_text(json.dumps(data, indent=2, default=str))
 
