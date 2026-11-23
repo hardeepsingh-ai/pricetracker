@@ -39,8 +39,8 @@ if DATABASE_URL:
         import psycopg2
         _use_pg = True
         logger.info("PostgreSQL mode enabled")
-    except ImportError:
-        logger.warning("psycopg2 not installed, falling back to JSON file")
+    except Exception as e:
+        logger.warning(f"psycopg2 not available ({e}), falling back to JSON file")
 
 
 def _pg_connect():

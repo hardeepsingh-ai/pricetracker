@@ -45,6 +45,11 @@ async def health():
     import database
     info = {"status": "ok", "use_pg": database._use_pg, "db_url_set": bool(database.DATABASE_URL)}
     try:
+        import psycopg2
+        info["psycopg2_version"] = psycopg2.__version__
+    except Exception as e:
+        info["psycopg2_error"] = str(e)
+    try:
         db = database._load()
         info["users_count"] = len(db.get("users", {}))
     except Exception as e:
