@@ -45,7 +45,10 @@ SESSION_COOKIE = "pt_session"
 
 
 def get_current_user(request: Request) -> str | None:
-    return request.cookies.get(SESSION_COOKIE)
+    username = request.cookies.get(SESSION_COOKIE)
+    if username and not get_user(username):
+        return None
+    return username
 
 
 def require_login(request: Request) -> str:
