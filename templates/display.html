@@ -4,46 +4,111 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ store_name }} — Live Prices</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&family=Space+Grotesk:wght@700&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
+
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #0a0a1a;
-            color: white;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #050d1a;
+            color: #f0f4f8;
             min-height: 100vh;
             overflow: hidden;
+            position: relative;
         }
 
+        /* Animated gradient background */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse 80% 60% at 20% 80%, rgba(16, 185, 129, 0.08) 0%, transparent 60%),
+                radial-gradient(ellipse 60% 50% at 80% 20%, rgba(59, 130, 246, 0.06) 0%, transparent 50%),
+                radial-gradient(ellipse 50% 40% at 50% 50%, rgba(139, 92, 246, 0.04) 0%, transparent 50%);
+            animation: bgShift 20s ease-in-out infinite alternate;
+            z-index: 0;
+        }
+        @keyframes bgShift {
+            0% { opacity: 1; transform: scale(1); }
+            100% { opacity: 0.7; transform: scale(1.1); }
+        }
+
+        /* Header */
         .header {
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-            padding: 20px 40px;
+            position: relative;
+            z-index: 10;
+            background: rgba(10, 20, 40, 0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            padding: 18px 40px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            border-bottom: 3px solid #4ecdc4;
+            border-bottom: 1px solid rgba(78, 205, 196, 0.2);
         }
-        .header h1 {
-            font-size: 1.8rem;
-            font-weight: 800;
+        .header-left { display: flex; align-items: center; gap: 16px; }
+        .logo {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.6rem;
+            font-weight: 700;
             letter-spacing: -0.5px;
         }
-        .header h1 .accent { color: #4ecdc4; }
-        .header .store-name {
-            font-size: 1.1rem;
+        .logo .accent { color: #4ecdc4; }
+        .store-badge {
+            background: rgba(78, 205, 196, 0.12);
+            border: 1px solid rgba(78, 205, 196, 0.25);
+            padding: 5px 14px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
             color: #4ecdc4;
+            letter-spacing: 0.3px;
+        }
+        .header-right { display: flex; align-items: center; gap: 16px; }
+        .live-indicator {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.8rem;
+            color: #64748b;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+        }
+        .live-dot {
+            width: 8px; height: 8px;
+            background: #10b981;
+            border-radius: 50%;
+            animation: pulse 2s ease-in-out infinite;
+            box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(0.85); }
+        }
+        .clock {
+            font-size: 0.85rem;
+            color: #94a3b8;
+            font-weight: 600;
+            font-variant-numeric: tabular-nums;
+        }
+        .product-counter {
+            font-size: 0.8rem;
+            color: #475569;
             font-weight: 600;
         }
-        .header .updated {
-            font-size: 0.85rem;
-            color: #888;
-        }
 
+        /* Carousel */
         .carousel-container {
+            position: relative;
+            z-index: 5;
             display: flex;
             align-items: center;
             justify-content: center;
-            height: calc(100vh - 90px);
-            padding: 30px;
+            height: calc(100vh - 100px);
+            padding: 24px 40px 60px;
         }
 
         .product-card {
@@ -52,139 +117,248 @@
             align-items: center;
             justify-content: center;
             width: 100%;
-            max-width: 900px;
-            animation: fadeIn 0.5s ease;
+            max-width: 1000px;
+            animation: slideIn 0.6s cubic-bezier(0.16, 1, 0.3, 1);
         }
         .product-card.active { display: flex; }
 
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(30px) scale(0.97); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
         }
 
+        /* Product name */
         .product-name {
-            font-size: 3rem;
-            font-weight: 800;
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 3.2rem;
+            font-weight: 700;
             text-align: center;
-            margin-bottom: 30px;
-            letter-spacing: -1px;
+            margin-bottom: 12px;
+            letter-spacing: -1.5px;
+            text-wrap: balance;
+            background: linear-gradient(135deg, #f8fafc, #cbd5e1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
         }
 
+        .comparison-label {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 2.5px;
+            color: #475569;
+            font-weight: 600;
+            margin-bottom: 28px;
+        }
+
+        /* Price cards */
         .price-row {
             display: flex;
-            gap: 40px;
-            align-items: center;
+            gap: 24px;
+            align-items: stretch;
             justify-content: center;
-            margin-bottom: 30px;
+            margin-bottom: 28px;
             flex-wrap: wrap;
         }
 
         .price-box {
             text-align: center;
-            padding: 30px 40px;
-            border-radius: 16px;
-            min-width: 220px;
-        }
-        .price-box.ours {
-            background: linear-gradient(135deg, #1b4332, #2d6a4f);
-            border: 2px solid #4ecdc4;
-        }
-        .price-box.theirs {
-            background: linear-gradient(135deg, #3d1f1f, #5a2e2e);
-            border: 2px solid #ff6b6b;
-        }
-        .price-box .label {
-            font-size: 1rem;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            margin-bottom: 8px;
-            font-weight: 600;
-        }
-        .price-box.ours .label { color: #4ecdc4; }
-        .price-box.theirs .label { color: #ff6b6b; }
-        .price-box .amount {
-            font-size: 3.5rem;
-            font-weight: 800;
-        }
-        .price-box .source {
-            font-size: 0.85rem;
-            color: #aaa;
-            margin-top: 4px;
+            padding: 32px 44px;
+            border-radius: 20px;
+            min-width: 240px;
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.3s ease;
         }
 
+        .price-box.ours {
+            background: linear-gradient(160deg, rgba(16, 185, 129, 0.15) 0%, rgba(6, 78, 59, 0.3) 100%);
+            border: 1.5px solid rgba(16, 185, 129, 0.3);
+            box-shadow: 0 8px 32px rgba(16, 185, 129, 0.1), inset 0 1px 0 rgba(255,255,255,0.05);
+        }
+        .price-box.theirs {
+            background: linear-gradient(160deg, rgba(100, 116, 139, 0.12) 0%, rgba(51, 65, 85, 0.25) 100%);
+            border: 1.5px solid rgba(100, 116, 139, 0.2);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255,255,255,0.03);
+        }
+
+        .price-box .label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+        .price-box.ours .label { color: #34d399; }
+        .price-box.theirs .label { color: #94a3b8; }
+
+        .price-box .amount {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 3.6rem;
+            font-weight: 700;
+            letter-spacing: -2px;
+            line-height: 1;
+        }
+        .price-box.ours .amount { color: #6ee7b7; }
+        .price-box.theirs .amount { color: #cbd5e1; }
+
+        .price-box .source {
+            font-size: 0.8rem;
+            color: #64748b;
+            margin-top: 8px;
+            font-weight: 500;
+        }
+
+        /* "VS" divider */
+        .vs-badge {
+            width: 44px; height: 44px;
+            border-radius: 50%;
+            background: rgba(30, 41, 59, 0.8);
+            border: 1.5px solid rgba(100, 116, 139, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            font-weight: 800;
+            color: #64748b;
+            letter-spacing: 1px;
+            flex-shrink: 0;
+            align-self: center;
+        }
+
+        /* Savings banner */
         .savings-banner {
-            font-size: 2rem;
+            font-size: 1.4rem;
             font-weight: 800;
             text-align: center;
-            padding: 16px 40px;
-            border-radius: 12px;
-            margin-bottom: 20px;
+            padding: 16px 36px;
+            border-radius: 14px;
+            margin-bottom: 8px;
+            letter-spacing: -0.3px;
         }
         .savings-banner.saving {
-            background: linear-gradient(135deg, #065f46, #047857);
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(5, 150, 105, 0.15));
+            border: 1.5px solid rgba(16, 185, 129, 0.3);
             color: #6ee7b7;
         }
-        .savings-banner.expensive {
-            background: linear-gradient(135deg, #7f1d1d, #991b1b);
-            color: #fca5a5;
+        .savings-banner.saving .amount-highlight {
+            font-size: 1.8rem;
+            color: #34d399;
         }
-        .savings-banner.match {
-            background: #1e293b;
+        .savings-banner.comparable {
+            background: rgba(30, 41, 59, 0.5);
+            border: 1.5px solid rgba(100, 116, 139, 0.2);
             color: #94a3b8;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        /* Compliance disclaimer */
+        .disclaimer {
+            position: fixed;
+            bottom: 36px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.65rem;
+            color: #334155;
+            text-align: center;
+            max-width: 700px;
+            line-height: 1.5;
+            z-index: 10;
+        }
+
+        /* Navigation */
+        .nav-dots {
+            position: fixed;
+            bottom: 56px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 6px;
+            z-index: 10;
+        }
+        .nav-dots .dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: rgba(100, 116, 139, 0.3);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .nav-dots .dot.active {
+            background: #4ecdc4;
+            width: 24px;
+            border-radius: 4px;
+            box-shadow: 0 0 10px rgba(78, 205, 196, 0.4);
         }
 
         .progress-bar {
             position: fixed;
-            bottom: 0;
+            top: 0;
             left: 0;
-            height: 4px;
-            background: #4ecdc4;
-            transition: width linear;
+            height: 3px;
+            background: linear-gradient(90deg, #4ecdc4, #10b981);
+            z-index: 20;
+            border-radius: 0 2px 2px 0;
+            box-shadow: 0 0 12px rgba(78, 205, 196, 0.5);
         }
-
-        .nav-dots {
-            position: fixed;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            gap: 8px;
-        }
-        .nav-dots .dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            background: #333;
-            cursor: pointer;
-        }
-        .nav-dots .dot.active { background: #4ecdc4; }
 
         .no-products {
             text-align: center;
-            color: #666;
-            font-size: 1.5rem;
-            margin-top: 20%;
+            color: #475569;
+            font-size: 1.3rem;
+            font-weight: 500;
         }
 
-        @media (max-width: 600px) {
-            .header { padding: 14px 16px; }
-            .header h1 { font-size: 1.2rem; }
-            .product-name { font-size: 1.8rem; }
-            .price-box { min-width: 140px; padding: 20px; }
-            .price-box .amount { font-size: 2.2rem; }
-            .savings-banner { font-size: 1.3rem; padding: 12px 20px; }
-            .carousel-container { padding: 16px; }
-            .price-row { gap: 16px; }
+        /* Only our price (no comparison) */
+        .price-box.solo {
+            background: linear-gradient(160deg, rgba(78, 205, 196, 0.1) 0%, rgba(16, 185, 129, 0.15) 100%);
+            border: 1.5px solid rgba(78, 205, 196, 0.25);
+            box-shadow: 0 8px 32px rgba(78, 205, 196, 0.08);
+            min-width: 300px;
+        }
+        .price-box.solo .amount {
+            color: #a7f3d0;
+            font-size: 4.2rem;
+        }
+        .price-box.solo .label { color: #4ecdc4; }
+
+        /* Responsive */
+        @media (max-width: 700px) {
+            .header { padding: 12px 16px; }
+            .logo { font-size: 1.2rem; }
+            .store-badge { font-size: 0.72rem; padding: 4px 10px; }
+            .product-name { font-size: 2rem; }
+            .price-box { min-width: 150px; padding: 20px 24px; }
+            .price-box .amount { font-size: 2.4rem; }
+            .price-box.solo { min-width: 200px; }
+            .price-box.solo .amount { font-size: 3rem; }
+            .savings-banner { font-size: 1.1rem; padding: 12px 20px; }
+            .savings-banner .amount-highlight { font-size: 1.3rem; }
+            .carousel-container { padding: 16px 16px 60px; }
+            .price-row { gap: 12px; }
+            .vs-badge { width: 32px; height: 32px; font-size: 0.6rem; }
+            .comparison-label { font-size: 0.7rem; }
+            .disclaimer { font-size: 0.55rem; max-width: 90%; bottom: 28px; }
+            .nav-dots { bottom: 46px; }
         }
     </style>
 </head>
 <body>
     <div class="header">
-        <div>
-            <h1><span class="accent">Price</span>Tracker</h1>
-            <div class="store-name">{{ store_name }}</div>
+        <div class="header-left">
+            <div class="logo"><span class="accent">Price</span>Tracker</div>
+            <div class="store-badge">{{ store_name }}</div>
         </div>
-        <div class="updated" id="clock"></div>
+        <div class="header-right">
+            <div class="live-indicator">
+                <div class="live-dot"></div>
+                Live
+            </div>
+            <div class="clock" id="clock"></div>
+            {% if products %}
+            <div class="product-counter" id="counter">1 / {{ products|length }}</div>
+            {% endif %}
+        </div>
     </div>
 
     <div class="carousel-container">
@@ -192,37 +366,50 @@
         {% for p in products %}
         <div class="product-card {% if loop.first %}active{% endif %}" data-index="{{ loop.index0 }}">
             <div class="product-name">{{ p.name }}</div>
+
+            {% if p.cheapest %}
+            <div class="comparison-label">Price comparison with leading supermarkets</div>
             <div class="price-row">
                 <div class="price-box ours">
                     <div class="label">Our Price</div>
                     <div class="amount">£{{ "%.2f"|format(p.my_price) }}</div>
                 </div>
-                {% if p.cheapest %}
+                <div class="vs-badge">VS</div>
                 <div class="price-box theirs">
-                    <div class="label">Cheapest Supermarket</div>
+                    <div class="label">Supermarket Price</div>
                     <div class="amount">£{{ "%.2f"|format(p.cheapest.price) }}</div>
-                    <div class="source">{{ p.cheapest.store }}</div>
+                    <div class="source">{{ p.cheapest.store }} via Trolley.co.uk</div>
                 </div>
-                {% endif %}
             </div>
-            {% if p.cheapest %}
-                {% set diff = p.cheapest.price - p.my_price %}
-                {% if diff > 0 %}
-                <div class="savings-banner saving">
-                    Customer saves £{{ "%.2f"|format(diff) }} shopping here!
+
+            {% set diff = p.cheapest.price - p.my_price %}
+            {% if diff > 0.009 %}
+            <div class="savings-banner saving">
+                Save <span class="amount-highlight">£{{ "%.2f"|format(diff) }}</span> compared to {{ p.cheapest.store }}
+            </div>
+            {% elif diff < -0.009 %}
+            <div class="savings-banner comparable">
+                {{ p.cheapest.store }} price: £{{ "%.2f"|format(diff|abs) }} less — we offer convenience &amp; service
+            </div>
+            {% else %}
+            <div class="savings-banner comparable">
+                Same price as {{ p.cheapest.store }} — with the convenience of your local shop
+            </div>
+            {% endif %}
+
+            {% else %}
+            <div class="comparison-label">Today's price</div>
+            <div class="price-row">
+                <div class="price-box solo">
+                    <div class="label">Our Price</div>
+                    <div class="amount">£{{ "%.2f"|format(p.my_price) }}</div>
                 </div>
-                {% elif diff < 0 %}
-                <div class="savings-banner expensive">
-                    £{{ "%.2f"|format(diff|abs) }} more than supermarket
-                </div>
-                {% else %}
-                <div class="savings-banner match">Same price as supermarket</div>
-                {% endif %}
+            </div>
             {% endif %}
         </div>
         {% endfor %}
         {% else %}
-        <div class="no-products">No products scanned yet. Add products from the dashboard.</div>
+        <div class="no-products">No products to display yet.</div>
         {% endif %}
     </div>
 
@@ -236,14 +423,20 @@
 
     <div class="progress-bar" id="progressBar"></div>
 
+    <div class="disclaimer">
+        Supermarket prices sourced from Trolley.co.uk and may vary by location and availability.
+        Prices checked periodically and may not reflect real-time changes. All prices include VAT where applicable.
+    </div>
+
     <script>
-        const ROTATE_SECONDS = 6;
+        const ROTATE_SECONDS = 7;
         const cards = document.querySelectorAll('.product-card');
         const dots = document.querySelectorAll('.dot');
         const bar = document.getElementById('progressBar');
+        const counter = document.getElementById('counter');
+        const total = cards.length;
         let current = 0;
-        let timer = null;
-        let startTime = null;
+        let startTime = Date.now();
 
         function showCard(index) {
             cards.forEach(c => c.classList.remove('active'));
@@ -252,17 +445,17 @@
             if (dots[index]) dots[index].classList.add('active');
             current = index;
             startTime = Date.now();
+            if (counter) counter.textContent = (index + 1) + ' / ' + total;
         }
 
         function tick() {
-            if (cards.length === 0) return;
+            if (total === 0) return;
             const elapsed = Date.now() - startTime;
             const pct = Math.min((elapsed / (ROTATE_SECONDS * 1000)) * 100, 100);
             bar.style.width = pct + '%';
-            bar.style.transitionDuration = '0.1s';
-
+            bar.style.transitionDuration = '0.05s';
             if (elapsed >= ROTATE_SECONDS * 1000) {
-                showCard((current + 1) % cards.length);
+                showCard((current + 1) % total);
             }
             requestAnimationFrame(tick);
         }
@@ -274,17 +467,15 @@
         function updateClock() {
             const now = new Date();
             document.getElementById('clock').textContent =
-                'Live — ' + now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+                now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
         }
         updateClock();
         setInterval(updateClock, 30000);
 
-        if (cards.length > 1) {
-            startTime = Date.now();
+        if (total > 1) {
             requestAnimationFrame(tick);
         }
 
-        // Auto-refresh data every 5 minutes
         setTimeout(() => location.reload(), 5 * 60 * 1000);
     </script>
 </body>
