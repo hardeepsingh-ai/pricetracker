@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ store_name }} — Live Prices</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0a0a1a;
+            color: white;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            padding: 20px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 3px solid #4ecdc4;
+        }
+        .header h1 {
+            font-size: 1.8rem;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+        }
+        .header h1 .accent { color: #4ecdc4; }
+        .header .store-name {
+            font-size: 1.1rem;
+            color: #4ecdc4;
+            font-weight: 600;
+        }
+        .header .updated {
+            font-size: 0.85rem;
+            color: #888;
+        }
+
+        .carousel-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: calc(100vh - 90px);
+            padding: 30px;
+        }
+
+        .product-card {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            max-width: 900px;
+            animation: fadeIn 0.5s ease;
+        }
+        .product-card.active { display: flex; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .product-name {
+            font-size: 3rem;
+            font-weight: 800;
+            text-align: center;
+            margin-bottom: 30px;
+            letter-spacing: -1px;
+        }
+
+        .price-row {
+            display: flex;
+            gap: 40px;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .price-box {
+            text-align: center;
+            padding: 30px 40px;
+            border-radius: 16px;
+            min-width: 220px;
+        }
+        .price-box.ours {
+            background: linear-gradient(135deg, #1b4332, #2d6a4f);
+            border: 2px solid #4ecdc4;
+        }
+        .price-box.theirs {
+            background: linear-gradient(135deg, #3d1f1f, #5a2e2e);
+            border: 2px solid #ff6b6b;
+        }
+        .price-box .label {
+            font-size: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+        .price-box.ours .label { color: #4ecdc4; }
+        .price-box.theirs .label { color: #ff6b6b; }
+        .price-box .amount {
+            font-size: 3.5rem;
+            font-weight: 800;
+        }
+        .price-box .source {
+            font-size: 0.85rem;
+            color: #aaa;
+            margin-top: 4px;
+        }
+
+        .savings-banner {
+            font-size: 2rem;
+            font-weight: 800;
+            text-align: center;
+            padding: 16px 40px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+        .savings-banner.saving {
+            background: linear-gradient(135deg, #065f46, #047857);
+            color: #6ee7b7;
+        }
+        .savings-banner.expensive {
+            background: linear-gradient(135deg, #7f1d1d, #991b1b);
+            color: #fca5a5;
+        }
+        .savings-banner.match {
+            background: #1e293b;
+            color: #94a3b8;
+        }
+
+        .progress-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            height: 4px;
+            background: #4ecdc4;
+            transition: width linear;
+        }
+
+        .nav-dots {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 8px;
+        }
+        .nav-dots .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #333;
+            cursor: pointer;
+        }
+        .nav-dots .dot.active { background: #4ecdc4; }
+
+        .no-products {
+            text-align: center;
+            color: #666;
+            font-size: 1.5rem;
+            margin-top: 20%;
+        }
+
+        @media (max-width: 600px) {
+            .header { padding: 14px 16px; }
+            .header h1 { font-size: 1.2rem; }
+            .product-name { font-size: 1.8rem; }
+            .price-box { min-width: 140px; padding: 20px; }
+            .price-box .amount { font-size: 2.2rem; }
+            .savings-banner { font-size: 1.3rem; padding: 12px 20px; }
+            .carousel-container { padding: 16px; }
+            .price-row { gap: 16px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div>
+            <h1><span class="accent">Price</span>Tracker</h1>
+            <div class="store-name">{{ store_name }}</div>
+        </div>
+        <div class="updated" id="clock"></div>
+    </div>
+
+    <div class="carousel-container">
+        {% if products %}
+        {% for p in products %}
+        <div class="product-card {% if loop.first %}active{% endif %}" data-index="{{ loop.index0 }}">
+            <div class="product-name">{{ p.name }}</div>
+            <div class="price-row">
+                <div class="price-box ours">
+                    <div class="label">Our Price</div>
+                    <div class="amount">£{{ "%.2f"|format(p.my_price) }}</div>
+                </div>
+                {% if p.cheapest %}
+                <div class="price-box theirs">
+                    <div class="label">Cheapest Supermarket</div>
+                    <div class="amount">£{{ "%.2f"|format(p.cheapest.price) }}</div>
+                    <div class="source">{{ p.cheapest.store }}</div>
+                </div>
+                {% endif %}
+            </div>
+            {% if p.cheapest %}
+                {% set diff = p.cheapest.price - p.my_price %}
+                {% if diff > 0 %}
+                <div class="savings-banner saving">
+                    Customer saves £{{ "%.2f"|format(diff) }} shopping here!
+                </div>
+                {% elif diff < 0 %}
+                <div class="savings-banner expensive">
+                    £{{ "%.2f"|format(diff|abs) }} more than supermarket
+                </div>
+                {% else %}
+                <div class="savings-banner match">Same price as supermarket</div>
+                {% endif %}
+            {% endif %}
+        </div>
+        {% endfor %}
+        {% else %}
+        <div class="no-products">No products scanned yet. Add products from the dashboard.</div>
+        {% endif %}
+    </div>
+
+    {% if products %}
+    <div class="nav-dots">
+        {% for p in products %}
+        <div class="dot {% if loop.first %}active{% endif %}" data-index="{{ loop.index0 }}"></div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="progress-bar" id="progressBar"></div>
+
+    <script>
+        const ROTATE_SECONDS = 6;
+        const cards = document.querySelectorAll('.product-card');
+        const dots = document.querySelectorAll('.dot');
+        const bar = document.getElementById('progressBar');
+        let current = 0;
+        let timer = null;
+        let startTime = null;
+
+        function showCard(index) {
+            cards.forEach(c => c.classList.remove('active'));
+            dots.forEach(d => d.classList.remove('active'));
+            cards[index].classList.add('active');
+            if (dots[index]) dots[index].classList.add('active');
+            current = index;
+            startTime = Date.now();
+        }
+
+        function tick() {
+            if (cards.length === 0) return;
+            const elapsed = Date.now() - startTime;
+            const pct = Math.min((elapsed / (ROTATE_SECONDS * 1000)) * 100, 100);
+            bar.style.width = pct + '%';
+            bar.style.transitionDuration = '0.1s';
+
+            if (elapsed >= ROTATE_SECONDS * 1000) {
+                showCard((current + 1) % cards.length);
+            }
+            requestAnimationFrame(tick);
+        }
+
+        dots.forEach(d => {
+            d.addEventListener('click', () => showCard(parseInt(d.dataset.index)));
+        });
+
+        function updateClock() {
+            const now = new Date();
+            document.getElementById('clock').textContent =
+                'Live — ' + now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+        }
+        updateClock();
+        setInterval(updateClock, 30000);
+
+        if (cards.length > 1) {
+            startTime = Date.now();
+            requestAnimationFrame(tick);
+        }
+
+        // Auto-refresh data every 5 minutes
+        setTimeout(() => location.reload(), 5 * 60 * 1000);
+    </script>
+</body>
+</html>

@@ -455,6 +455,16 @@ async def public_compare(request: Request, username: str):
     })
 
 
+@app.get("/display/{username}", response_class=HTMLResponse)
+async def display_page(request: Request, username: str):
+    data = get_dashboard_data(username)
+    products = data.get("comparisons", [])
+    store_name = get_active_store_name(username) or username.title() + "'s Store"
+    return templates.TemplateResponse("display.html", {
+        "request": request, "products": products, "store_name": store_name,
+    })
+
+
 @app.get("/poster", response_class=HTMLResponse)
 async def poster_page(request: Request):
     user = get_current_user(request)
