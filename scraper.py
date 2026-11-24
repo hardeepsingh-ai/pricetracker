@@ -83,6 +83,24 @@ def _match_score(card_title: str, product_name: str, brand: str, size: str) -> f
         else:
             score *= 0.3
 
+    # Penalise multipacks when searching for a single item
+    multipack_match = re.search(r"\b(\d+)\s*x\s*\d+", title_norm)
+    search_has_multi = re.search(r"\b\d+\s*x\s*\d+", _normalise(product_name + " " + size))
+    if multipack_match and not search_has_multi:
+        score *= 0.1
+
+    # Penalise variant mismatches (zero, diet, vanilla, cherry, etc.)
+    variant_words = {"zero", "diet", "sugar free", "sugarfree", "vanilla",
+                     "cherry", "lime", "lemon", "strawberry", "mango",
+                     "decaf", "light", "max", "caffeine free"}
+    product_lower = _normalise(product_name)
+    for v in variant_words:
+        in_title = v in title_norm
+        in_search = v in product_lower
+        if in_title and not in_search:
+            score *= 0.15
+            break
+
     return score
 
 
