@@ -22,7 +22,8 @@ CATEGORIES = [
 
 
 def _normalise(text: str) -> str:
-    return re.sub(r"[^a-z0-9 ]", "", text.lower()).strip()
+    text = text.lower().replace("-", " ").replace("'", "")
+    return re.sub(r"[^a-z0-9 ]", "", text).strip()
 
 
 def _tokenise(text: str) -> set[str]:
@@ -38,27 +39,53 @@ def _match_score(card_title: str, product_name: str, brand: str, size: str) -> f
     if not product_tokens:
         return 0
 
-    matched = product_tokens & title_tokens
+    matched = set()
+    for pt in product_tokens:
+        if pt in title_tokens:
+            matched.add(pt)
+        else:
+            for tt in title_tokens:
+                if pt in tt or tt in pt:
+                    matched.add(pt)
+                    break
     word_ratio = len(matched) / len(product_tokens)
-    if word_ratio < 0.5:
+    min_ratio = 0.5 if len(product_tokens) <= 2 else 0.6
+    if word_ratio < min_ratio:
         return 0
 
     score = word_ratio * 50
 
-    # Brand is just a reference — small bonus, no penalty
-    if brand and _normalise(brand) in title_norm:
-        score += 10
+    # Brand match — bonus if present, track penalty for later
+    brand_missing = False
+    if brand:
+        brand_norm = _normalise(brand)
+        if brand_norm in title_norm:
+            score += 10
+        elif brand_norm in _normalise(product_name):
+            brand_missing = True
 
     # Size/quantity is critical — must match the right pack/volume
     if size:
         size_lower = size.lower().strip()
         title_clean = re.sub(r"[^a-z0-9. ]", "", title_norm)
 
+        # Handle multipack sizes like "4 x 380ml" or "6x500ml"
+        multi_size = re.match(r"(\d+)\s*x\s*(\d+\.?\d*\s*(?:ml|l|g|kg|cl))", size_lower)
+        size_matched = False
+        if multi_size:
+            pack_count = multi_size.group(1)
+            per_unit = re.sub(r"[^a-z0-9]", "", multi_size.group(2))
+            title_compact = re.sub(r"[^a-z0-9 ]", "", title_norm)
+            if (re.search(r"\b" + re.escape(pack_count) + r"\b", title_compact) and
+                per_unit in re.sub(r"[^a-z0-9]", "", title_compact)):
+                size_matched = True
+            elif per_unit in re.sub(r"[^a-z0-9]", "", title_compact):
+                size_matched = True
+
         # Extract numeric value and unit from size (e.g. "6 pack" -> 6, "500ml" -> 500ml)
         num_match = re.match(r"(\d+\.?\d*)\s*(pack|pk|x|ml|l|g|kg|litre|liter|pint|pt)?s?$", size_lower)
-        size_matched = False
 
-        if num_match:
+        if not size_matched and num_match:
             num = num_match.group(1)
             unit = (num_match.group(2) or "").rstrip("s")
 
@@ -84,22 +111,43 @@ def _match_score(card_title: str, product_name: str, brand: str, size: str) -> f
             score *= 0.3
 
     # Penalise multipacks when searching for a single item
+    search_norm = _normalise(product_name + " " + size)
     multipack_match = re.search(r"\b(\d+)\s*x\s*\d+", title_norm)
-    search_has_multi = re.search(r"\b\d+\s*x\s*\d+", _normalise(product_name + " " + size))
+    search_has_multi = re.search(r"\b\d+\s*x\s*\d+", search_norm)
     if multipack_match and not search_has_multi:
         score *= 0.1
+    # Also catch pack counts like "8 Coca-Cola" or "12 Pepsi" in title
+    # where search is for a single item (no pack/multipack words)
+    # Use a moderate penalty so the right product as a multipack still beats
+    # a completely wrong single product
+    if not search_has_multi and not re.search(r"\b(pack|pk)\b", search_norm):
+        pack_match = re.match(r"^\d+\w*\s+(\d+)\s+", title_norm)
+        if pack_match:
+            pack_num = int(pack_match.group(1))
+            if pack_num in (2, 3, 4, 6, 8, 10, 12, 15, 18, 20, 24, 28, 30, 36):
+                score *= 0.4
 
     # Penalise variant mismatches (zero, diet, vanilla, cherry, etc.)
     variant_words = {"zero", "diet", "sugar free", "sugarfree", "vanilla",
                      "cherry", "lime", "lemon", "strawberry", "mango",
-                     "decaf", "light", "max", "caffeine free"}
+                     "decaf", "light", "max", "caffeine free",
+                     "vegan", "meat free", "non dairy", "plant based",
+                     "alcohol free", "sugar free"}
     product_lower = _normalise(product_name)
     for v in variant_words:
-        in_title = v in title_norm
-        in_search = v in product_lower
+        v_re = r"\b" + re.escape(v) + r"\b"
+        in_title = bool(re.search(v_re, title_norm))
+        in_search = bool(re.search(v_re, product_lower))
         if in_title and not in_search:
             score *= 0.15
             break
+        if in_search and not in_title:
+            score *= 0.3
+            break
+
+    # Apply brand penalty last so it cuts the full score
+    if brand_missing:
+        score *= 0.15
 
     return score
 
@@ -151,7 +199,7 @@ async def scrape_trolley_prices(product_name: str, size: str = "", brand: str = 
                 brand_lower = brand.lower()
                 if brand_lower in generic_name.lower():
                     generic_name = re.sub(re.escape(brand_lower), "", generic_name, flags=re.I).strip()
-                if not generic_name:
+                if not generic_name or len(_tokenise(generic_name)) < 2:
                     generic_name = product_name
                 parts2 = [generic_name]
                 if size:
