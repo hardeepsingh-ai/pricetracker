@@ -132,7 +132,7 @@ def _match_score(card_title: str, product_name: str, brand: str, size: str) -> f
         if pack_match:
             pack_num = int(pack_match.group(1))
             if pack_num in (2, 3, 4, 6, 8, 10, 12, 15, 18, 20, 24, 28, 30, 36):
-                score *= 0.4
+                score *= 0.15
 
     # Penalise variant/flavour mismatches
     # "strong" variants: always penalise mismatch in either direction
@@ -140,7 +140,8 @@ def _match_score(card_title: str, product_name: str, brand: str, size: str) -> f
         "zero", "diet", "sugar free", "sugarfree", "max",
         "caffeine free", "decaf", "light",
         "vegan", "meat free", "non dairy", "plant based",
-        "alcohol free",
+        "alcohol free", "lactose free", "gluten free",
+        "mens", "womens", "kids",
     ]
     # "flavour" variants: penalise when title has a DIFFERENT flavour
     # Check longest first so "cheese and onion" matches before "cheese"
@@ -220,7 +221,16 @@ def _match_score(card_title: str, product_name: str, brand: str, size: str) -> f
                            "slightly", "block", "spread", "spreadable",
                            "sliced", "medium", "thick", "thin", "soft",
                            "free", "range", "large", "small", "extra",
-                           "snack", "flavour", "taste", "style", "type"}
+                           "snack", "flavour", "taste", "style", "type",
+                           "gentle", "clean", "tissue", "toilet", "kitchen",
+                           "liquid", "powder", "gel", "wash", "soap",
+                           "anti", "dandruff", "sensitive", "supreme",
+                           "moisturising", "nourishing", "conditioning",
+                           "mature", "mild", "strong", "finest", "best",
+                           "biscuits", "crackers", "cereal", "oats",
+                           "fish", "fingers", "chicken", "beef", "pork",
+                           "oven", "chips", "frozen", "fresh", "cooked",
+                           "omega", "vitamin", "protein", "fibre"}
     extra_tokens = title_tokens - product_tokens - generic_title_words
     # Remove size tokens (numbers, units, combined like 6x25g)
     extra_tokens = {t for t in extra_tokens if not re.match(r"^\d+\.?\d*$", t)
@@ -280,7 +290,7 @@ async def scrape_trolley_prices(product_name: str, size: str = "", brand: str = 
             best_card, best_score = await _find_best_match(client, search_url, product_name, brand, size)
 
             # Try 2: search without brand if no good match
-            if (not best_card or best_score < 20) and brand:
+            if (not best_card or best_score < 25) and brand:
                 generic_name = product_name
                 brand_lower = brand.lower()
                 if brand_lower in generic_name.lower():
@@ -297,7 +307,7 @@ async def scrape_trolley_prices(product_name: str, size: str = "", brand: str = 
                 if best_score2 > best_score:
                     best_card, best_score = best_card2, best_score2
 
-            if not best_card or best_score < 20:
+            if not best_card or best_score < 25:
                 return []
 
             link = best_card.find("a")
@@ -315,6 +325,32 @@ async def scrape_trolley_prices(product_name: str, size: str = "", brand: str = 
 
     except Exception:
         return []
+
+    # Determine a reasonable max price based on size to catch multipack pages
+    max_price = 25.0  # generous default
+    if size:
+        size_lower = size.lower().strip()
+        ml_match = re.search(r"(\d+\.?\d*)\s*ml", size_lower)
+        l_match = re.search(r"(\d+\.?\d*)\s*l\b", size_lower)
+        g_match = re.search(r"(\d+\.?\d*)\s*g\b", size_lower)
+        kg_match = re.search(r"(\d+\.?\d*)\s*kg", size_lower)
+        pack_match = re.search(r"(\d+)\s*(pack|pk)", size_lower)
+        multi_match = re.search(r"(\d+)\s*x", size_lower)
+        if ml_match and not multi_match:
+            ml = float(ml_match.group(1))
+            max_price = max(5.0, ml * 0.02)  # 500ml -> £10 max
+        elif l_match and not multi_match:
+            litres = float(l_match.group(1))
+            max_price = max(5.0, litres * 8.0)  # 2L -> £16 max
+        elif g_match and not multi_match:
+            grams = float(g_match.group(1))
+            max_price = max(5.0, grams * 0.05)  # 200g -> £10 max
+        elif kg_match and not multi_match:
+            kg = float(kg_match.group(1))
+            max_price = max(8.0, kg * 30.0)
+        elif pack_match:
+            count = int(pack_match.group(1))
+            max_price = max(8.0, count * 3.0)  # 6 pack -> £18 max
 
     detail_soup = BeautifulSoup(detail.text, "html.parser")
     results = []
@@ -337,9 +373,13 @@ async def scrape_trolley_prices(product_name: str, size: str = "", brand: str = 
         if not match:
             continue
 
+        price_val = float(match.group(1))
+        if price_val > max_price:
+            continue
+
         results.append({
             "product_name": product_title[:45],
-            "price": float(match.group(1)),
+            "price": price_val,
             "store": store,
             "url": product_url,
             "scraped_at": datetime.utcnow().isoformat(),
