@@ -1,10 +1,35 @@
+# Virtual environment
 venv/
+.venv/
+
+# Python
 __pycache__/
 *.pyc
-.env
-data/db.json
-.claude/
+*.pyo
 *.egg-info/
 dist/
 build/
+
+# Environment
+.env
+.env.local
+
+# Data (runtime database — seed file is tracked)
+data/db.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
 .DS_Store
+Thumbs.db
+
+# Claude Code
+.claude/
+
+# Test artifacts
+*.csv
+!data/*.csv
