@@ -22,8 +22,8 @@ CATEGORIES = [
 
 
 def _normalise(text: str) -> str:
-    text = text.lower().replace("-", " ").replace("'", "")
-    return re.sub(r"[^a-z0-9 ]", "", text).strip()
+    text = text.lower().replace("-", " ").replace("'", "").replace("&", " and ")
+    return re.sub(r"[^a-z0-9 ]", "", re.sub(r"\s+", " ", text)).strip()
 
 
 def _tokenise(text: str) -> set[str]:
@@ -90,8 +90,11 @@ def _match_score(card_title: str, product_name: str, brand: str, size: str) -> f
             unit = (num_match.group(2) or "").rstrip("s")
 
             if unit in ("pack", "pk", "x", ""):
-                # For packs: match if the number appears in title (e.g. "6" in "6 Free Range Eggs")
+                # For packs: match if the number appears in title
+                # Also match "6x25g" style multipack format
                 title_numbers = re.findall(r"\b" + re.escape(num) + r"\b", title_clean)
+                if not title_numbers:
+                    title_numbers = re.findall(r"\b" + re.escape(num) + r"x\d+", title_clean)
                 if title_numbers:
                     size_matched = True
             else:
@@ -115,7 +118,11 @@ def _match_score(card_title: str, product_name: str, brand: str, size: str) -> f
     multipack_match = re.search(r"\b(\d+)\s*x\s*\d+", title_norm)
     search_has_multi = re.search(r"\b\d+\s*x\s*\d+", search_norm)
     if multipack_match and not search_has_multi:
-        score *= 0.1
+        # Don't penalise if search has matching pack count (e.g. "6 pack" matches "6x25g")
+        pack_n = multipack_match.group(1)
+        search_has_pack = re.search(r"\b" + re.escape(pack_n) + r"\s*(pack|pk)\b", search_norm)
+        if not search_has_pack:
+            score *= 0.1
     # Also catch pack counts like "8 Coca-Cola" or "12 Pepsi" in title
     # where search is for a single item (no pack/multipack words)
     # Use a moderate penalty so the right product as a multipack still beats
@@ -127,14 +134,43 @@ def _match_score(card_title: str, product_name: str, brand: str, size: str) -> f
             if pack_num in (2, 3, 4, 6, 8, 10, 12, 15, 18, 20, 24, 28, 30, 36):
                 score *= 0.4
 
-    # Penalise variant mismatches (zero, diet, vanilla, cherry, etc.)
-    variant_words = {"zero", "diet", "sugar free", "sugarfree", "vanilla",
-                     "cherry", "lime", "lemon", "strawberry", "mango",
-                     "decaf", "light", "max", "caffeine free",
-                     "vegan", "meat free", "non dairy", "plant based",
-                     "alcohol free", "sugar free"}
+    # Penalise variant/flavour mismatches
+    # "strong" variants: always penalise mismatch in either direction
+    strong_variants = [
+        "zero", "diet", "sugar free", "sugarfree", "max",
+        "caffeine free", "decaf", "light",
+        "vegan", "meat free", "non dairy", "plant based",
+        "alcohol free",
+    ]
+    # "flavour" variants: penalise when title has a DIFFERENT flavour
+    # Check longest first so "cheese and onion" matches before "cheese"
+    flavour_variants = [
+        "sour cream and onion", "sour cream and chive",
+        "strawberries and cream", "strawberries n cream",
+        "salt and vinegar", "cheese and onion",
+        "red edition", "white edition", "blue edition",
+        "cool original", "chilli heatwave", "tangy cheese",
+        "texas bbq", "texas bbq sauce", "bbq",
+        "semi skimmed", "slightly salted", "smoky bacon",
+        "prawn cocktail", "ready salted", "roast chicken",
+        "sweet chilli", "sea salt", "black pepper",
+        "pickled onion", "worcester sauce",
+        "creamy vanilla", "holiday",
+        "fruit and nut", "whole nut", "oreo",
+        "pepperoni", "margherita", "ham and pineapple",
+        "caramel nut crunch", "fruit and nut crunch",
+        "sugar free",
+        "vanilla", "cherry", "lime", "lemon", "strawberry", "mango",
+        "chocolate", "caramel", "toffee", "mint", "raspberry",
+        "tropical", "orange", "apple", "grape", "blackcurrant",
+        "sparkling",
+        "salted", "unsalted",
+        "smooth", "crunchy",
+        "skimmed", "whole",
+    ]
     product_lower = _normalise(product_name)
-    for v in variant_words:
+
+    for v in strong_variants:
         v_re = r"\b" + re.escape(v) + r"\b"
         in_title = bool(re.search(v_re, title_norm))
         in_search = bool(re.search(v_re, product_lower))
@@ -144,6 +180,57 @@ def _match_score(card_title: str, product_name: str, brand: str, size: str) -> f
         if in_search and not in_title:
             score *= 0.3
             break
+
+    # Build sets of flavours present in title vs search
+    # Match longest first, then remove matched text to avoid double-counting
+    def _find_flavours(text, variants):
+        found = []
+        remaining = text
+        for v in variants:
+            v_re = r"\b" + re.escape(v) + r"\b"
+            if re.search(v_re, remaining):
+                found.append(v)
+                remaining = re.sub(v_re, " ", remaining)
+        return set(found)
+
+    search_flavours = _find_flavours(product_lower, flavour_variants)
+    title_flavours = _find_flavours(title_norm, flavour_variants)
+    # If title has flavours the search doesn't — wrong flavour
+    extra_in_title = title_flavours - search_flavours
+    # Ignore incidental descriptors that appear in product type descriptions
+    incidental = {"salted", "slightly salted", "vanilla", "smooth", "whole",
+                  "skimmed", "semi skimmed", "chocolate", "cream"}
+    meaningful_extra = extra_in_title - incidental
+    if meaningful_extra:
+        score *= 0.15
+    elif extra_in_title:
+        score *= 0.5
+    # If search has specific (non-generic) flavours missing from title
+    generic_flavours = {"original", "classic"}
+    meaningful_missing = (search_flavours - title_flavours) - generic_flavours - incidental
+    if meaningful_missing:
+        score *= 0.3
+
+    # Penalise titles with many extra tokens not in the search
+    generic_title_words = {"bar", "bottle", "can", "pack", "pint", "litre",
+                           "sharing", "multipack", "single", "bag", "box",
+                           "chocolate", "crisps", "drink", "drinks", "water",
+                           "milk", "bread", "roll", "rolls", "cream",
+                           "natural", "mineral", "energy", "original", "classic",
+                           "slightly", "block", "spread", "spreadable",
+                           "sliced", "medium", "thick", "thin", "soft",
+                           "free", "range", "large", "small", "extra",
+                           "snack", "flavour", "taste", "style", "type"}
+    extra_tokens = title_tokens - product_tokens - generic_title_words
+    # Remove size tokens (numbers, units, combined like 6x25g)
+    extra_tokens = {t for t in extra_tokens if not re.match(r"^\d+\.?\d*$", t)
+                    and not re.match(r"^\d+x\d+", t)
+                    and t not in ("ml", "l", "g", "kg", "cl", "pt", "pints")
+                    and not re.match(r"^\d+\w*(?:ml|l|g|kg|cl)$", t)}
+    if brand:
+        extra_tokens -= _tokenise(brand)
+    if len(extra_tokens) >= 3:
+        score *= 0.3
 
     # Apply brand penalty last so it cuts the full score
     if brand_missing:
@@ -193,8 +280,7 @@ async def scrape_trolley_prices(product_name: str, size: str = "", brand: str = 
             best_card, best_score = await _find_best_match(client, search_url, product_name, brand, size)
 
             # Try 2: search without brand if no good match
-            if (not best_card or best_score < 30) and brand:
-                # Strip brand words from product name for a generic search
+            if (not best_card or best_score < 20) and brand:
                 generic_name = product_name
                 brand_lower = brand.lower()
                 if brand_lower in generic_name.lower():
@@ -206,9 +292,12 @@ async def scrape_trolley_prices(product_name: str, size: str = "", brand: str = 
                     parts2.append(size)
                 query2 = " ".join(parts2)
                 search_url2 = f"https://www.trolley.co.uk/search/?q={query2.replace(' ', '+')}"
-                best_card, best_score = await _find_best_match(client, search_url2, generic_name, "", size)
+                # Still check brand so wrong-brand results get penalised
+                best_card2, best_score2 = await _find_best_match(client, search_url2, product_name, brand, size)
+                if best_score2 > best_score:
+                    best_card, best_score = best_card2, best_score2
 
-            if not best_card or best_score < 30:
+            if not best_card or best_score < 20:
                 return []
 
             link = best_card.find("a")
