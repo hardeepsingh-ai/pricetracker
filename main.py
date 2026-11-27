@@ -33,6 +33,8 @@ from database import (
     get_price_elasticity, get_churn_prediction, get_personalised_promotions,
     get_store_layout_heatmap, get_trust_dashboard,
     report_wrong_match,
+    track_event, track_session, track_scan, track_price_change,
+    track_feature_usage, get_analytics_summary, export_analytics_csv,
 )
 from scraper import scrape_trolley_prices, search_trolley_products, SAMPLE_PRODUCTS, CATEGORIES
 import logging
@@ -110,6 +112,8 @@ async def login(request: Request, username: str = Form(...), password: str = For
         })
     response = RedirectResponse("/dashboard", status_code=303)
     response.set_cookie(SESSION_COOKIE, username, max_age=86400 * 30)
+    track_event(username, "login")
+    track_session(username)
     return response
 
 
@@ -171,6 +175,8 @@ async def add_product(request: Request, product_name: str = Form(...), my_price:
         "added_at": datetime.utcnow().isoformat(),
     })
     set_my_products(user, products)
+    track_event(user, "product_added", {"product": product_name.strip(), "price": my_price, "category": category})
+    track_feature_usage(user, "product_search_add" if brand else "manual_add")
     return RedirectResponse("/setup", status_code=303)
 
 
@@ -181,8 +187,9 @@ async def remove_product(request: Request, index: int):
         return RedirectResponse("/login", status_code=303)
     products = get_my_products(user)
     if 0 <= index < len(products):
-        products.pop(index)
+        removed = products.pop(index)
         set_my_products(user, products)
+        track_event(user, "product_removed", {"product": removed.get("name", "")})
     return RedirectResponse("/setup", status_code=303)
 
 
@@ -195,11 +202,15 @@ async def update_product(request: Request, index: int, my_price: float = Form(..
         return RedirectResponse("/login", status_code=303)
     products = get_my_products(user)
     if 0 <= index < len(products):
+        old_price = products[index].get("price", 0)
         products[index]["price"] = my_price
         products[index]["cost_price"] = cost_price
         products[index]["size"] = size.strip()
         products[index]["category"] = category
         products[index]["brand"] = brand.strip()
+        if old_price != my_price:
+            track_price_change(user, products[index]["name"], old_price, my_price)
+            track_event(user, "price_change", {"product": products[index]["name"], "old": old_price, "new": my_price})
     set_my_products(user, products)
     return RedirectResponse("/setup", status_code=303)
 
@@ -215,6 +226,7 @@ async def dashboard(request: Request):
     user_info = get_user(user) or {}
     stores = get_stores(user) if is_owner(user) else []
     active = get_active_store(user)
+    track_event(user, "page_view", {"page": "dashboard"})
     return templates.TemplateResponse("dashboard.html", {
         "request": request, "data": data, "username": user,
         "is_owner": is_owner(user), "role": user_info.get("role", "owner"),
@@ -242,6 +254,9 @@ async def scan_prices(request: Request):
                 scanned += 1
         except Exception:
             continue
+    track_event(user, "scan", {"scanned": scanned, "total": len(products)})
+    track_scan(user, len(products), scanned)
+    track_feature_usage(user, "price_scan")
     return {"success": True, "scanned": scanned, "total": len(products)}
 
 
@@ -295,6 +310,8 @@ async def search_products(request: Request, q: str = ""):
     if not q or len(q) < 2:
         return {"results": []}
     results = await search_trolley_products(q.strip())
+    track_event(user, "product_search", {"query": q.strip(), "results_count": len(results)})
+    track_feature_usage(user, "product_search")
     return {"results": results}
 
 
@@ -328,6 +345,8 @@ async def csv_export(request: Request):
     if not user:
         return RedirectResponse("/login", status_code=303)
     csv_data = export_csv(user)
+    track_event(user, "export", {"format": "csv"})
+    track_feature_usage(user, "csv_export")
     return Response(
         content=csv_data, media_type="text/csv",
         headers={"Content-Disposition": f"attachment; filename=pricetracker_{datetime.utcnow().strftime('%Y%m%d')}.csv"},
@@ -701,6 +720,33 @@ async def ai_insights_page(request: Request):
         "layout": layout,
         "trust": trust,
     })
+
+
+# --- Analytics Dashboard (GTV Evidence) ---
+
+@app.get("/analytics-usage", response_class=HTMLResponse)
+async def analytics_usage_page(request: Request):
+    user = get_current_user(request)
+    if not user or not is_owner(user):
+        return RedirectResponse("/login", status_code=303)
+    summary = get_analytics_summary(user)
+    track_event(user, "page_view", {"page": "analytics_usage"})
+    return templates.TemplateResponse("analytics_usage.html", {
+        "request": request, "username": user, "summary": summary,
+    })
+
+
+@app.get("/api/analytics-export")
+async def analytics_csv_export(request: Request):
+    user = get_current_user(request)
+    if not user or not is_owner(user):
+        return RedirectResponse("/login", status_code=303)
+    csv_data = export_analytics_csv(user)
+    track_event(user, "export", {"format": "analytics_csv"})
+    return Response(
+        content=csv_data, media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename=analytics_{datetime.utcnow().strftime('%Y%m%d')}.csv"},
+    )
 
 
 @app.get("/sw.js")

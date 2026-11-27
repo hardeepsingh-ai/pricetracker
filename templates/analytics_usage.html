@@ -1,0 +1,241 @@
+{% extends "base.html" %}
+{% block title %}Usage Analytics — PriceTracker{% endblock %}
+{% block head %}
+<style>
+    .metric-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px; }
+    .metric-card {
+        background: white; border-radius: 14px; padding: 20px 16px; text-align: center;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.06); border: 1px solid rgba(0,0,0,0.04);
+    }
+    .metric-card .num {
+        font-size: 2rem; font-weight: 900; font-family: 'JetBrains Mono', monospace;
+        letter-spacing: -1px; color: #1a1a2e;
+    }
+    .metric-card .label {
+        font-size: 0.7rem; color: #888; text-transform: uppercase;
+        letter-spacing: 0.8px; font-weight: 600; margin-top: 4px;
+    }
+    .metric-card.accent .num { color: #4ecdc4; }
+    .metric-card.green .num { color: #27ae60; }
+    .metric-card.purple .num { color: #9b59b6; }
+    .metric-card.orange .num { color: #e67e22; }
+    .metric-card.blue .num { color: #3498db; }
+
+    .hero-card {
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+        border-radius: 16px; padding: 28px; margin-bottom: 24px; color: white;
+    }
+    .hero-card h2 { font-size: 1.3rem; font-weight: 800; margin-bottom: 4px; }
+    .hero-card p { color: rgba(255,255,255,0.5); font-size: 0.85rem; }
+    .hero-stats { display: flex; gap: 32px; margin-top: 16px; }
+    .hero-stat .num {
+        font-size: 2.2rem; font-weight: 900; color: #4ecdc4;
+        font-family: 'JetBrains Mono', monospace;
+    }
+    .hero-stat .label { font-size: 0.7rem; color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 0.8px; }
+
+    .daily-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    .daily-table th {
+        text-align: left; padding: 10px 8px; font-size: 0.7rem; color: #888;
+        text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #f0f2f5;
+    }
+    .daily-table td { padding: 10px 8px; border-bottom: 1px solid #f0f2f5; }
+    .daily-table tr:last-child td { border-bottom: none; }
+    .daily-table .mono { font-family: 'JetBrains Mono', monospace; font-weight: 600; }
+
+    .change-item {
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 10px 0; border-bottom: 1px solid #f0f2f5; font-size: 0.85rem;
+    }
+    .change-item:last-child { border-bottom: none; }
+    .change-old { color: #e74c3c; text-decoration: line-through; font-family: 'JetBrains Mono', monospace; }
+    .change-new { color: #27ae60; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+
+    .feature-bar {
+        display: flex; align-items: center; gap: 12px; padding: 8px 0;
+        border-bottom: 1px solid #f0f2f5; font-size: 0.85rem;
+    }
+    .feature-bar:last-child { border-bottom: none; }
+    .feature-bar .bar-track { flex: 1; height: 8px; background: #f0f2f5; border-radius: 4px; overflow: hidden; }
+    .feature-bar .bar-fill { height: 100%; background: linear-gradient(90deg, #4ecdc4, #44b8b0); border-radius: 4px; }
+    .feature-bar .count { font-family: 'JetBrains Mono', monospace; font-weight: 700; min-width: 40px; text-align: right; }
+
+    @media (max-width: 600px) {
+        .metric-grid { grid-template-columns: repeat(2, 1fr); }
+        .hero-stats { flex-wrap: wrap; gap: 16px; }
+    }
+</style>
+{% endblock %}
+
+{% block body %}
+<nav class="navbar">
+    <h1>Price<span>Tracker</span></h1>
+    <div class="nav-links">
+        <a href="/dashboard">Dashboard</a>
+        <a href="/logout">Logout</a>
+    </div>
+</nav>
+
+<div class="container">
+    <!-- Hero -->
+    <div class="hero-card">
+        <h2>📊 Usage Analytics</h2>
+        <p>Platform usage data — automatically tracked for evidence & reporting</p>
+        <div class="hero-stats">
+            <div class="hero-stat">
+                <div class="num">{{ summary.total_events }}</div>
+                <div class="label">Total Events</div>
+            </div>
+            <div class="hero-stat">
+                <div class="num">{{ summary.active_days }}</div>
+                <div class="label">Active Days</div>
+            </div>
+            <div class="hero-stat">
+                <div class="num">{{ summary.unique_users }}</div>
+                <div class="label">Unique Users</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Key Metrics -->
+    <div class="metric-grid">
+        <div class="metric-card accent">
+            <div class="num">{{ summary.total_logins }}</div>
+            <div class="label">Logins</div>
+        </div>
+        <div class="metric-card green">
+            <div class="num">{{ summary.total_scans }}</div>
+            <div class="label">Price Scans</div>
+        </div>
+        <div class="metric-card purple">
+            <div class="num">{{ summary.total_page_views }}</div>
+            <div class="label">Page Views</div>
+        </div>
+        <div class="metric-card orange">
+            <div class="num">{{ summary.total_searches }}</div>
+            <div class="label">Product Searches</div>
+        </div>
+        <div class="metric-card blue">
+            <div class="num">{{ summary.total_price_changes }}</div>
+            <div class="label">Price Changes</div>
+        </div>
+        <div class="metric-card">
+            <div class="num">{{ summary.total_exports }}</div>
+            <div class="label">Report Exports</div>
+        </div>
+        <div class="metric-card">
+            <div class="num">{{ summary.first_activity }}</div>
+            <div class="label">First Activity</div>
+        </div>
+        <div class="metric-card">
+            <div class="num">{{ summary.last_activity }}</div>
+            <div class="label">Last Activity</div>
+        </div>
+    </div>
+
+    <!-- Export -->
+    <div style="display: flex; gap: 8px; margin-bottom: 20px;">
+        <a href="/api/analytics-export" class="btn btn-primary">📥 Export Usage Data (CSV)</a>
+        <a href="/dashboard" class="btn btn-secondary">← Back to Dashboard</a>
+    </div>
+
+    <!-- Daily Breakdown -->
+    {% if summary.daily_stats %}
+    <div class="card">
+        <div class="section-title">
+            <div class="icon" style="background: #e3f2fd;">📅</div>
+            Daily Activity Log
+        </div>
+        <div style="overflow-x: auto;">
+            <table class="daily-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Logins</th>
+                        <th>Scans</th>
+                        <th>Views</th>
+                        <th>Searches</th>
+                        <th>Products</th>
+                        <th>Changes</th>
+                        <th>Users</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for date in summary.daily_stats.keys()|sort(reverse=true) %}
+                    {% set d = summary.daily_stats[date] %}
+                    <tr>
+                        <td><strong>{{ date }}</strong></td>
+                        <td class="mono">{{ d.get('logins', 0) }}</td>
+                        <td class="mono">{{ d.get('scans', 0) }}</td>
+                        <td class="mono">{{ d.get('page_views', 0) }}</td>
+                        <td class="mono">{{ d.get('search_queries', 0) }}</td>
+                        <td class="mono">{{ d.get('products_added', 0) }}</td>
+                        <td class="mono">{{ d.get('price_changes', 0) }}</td>
+                        <td class="mono">{{ d.get('unique_users', [])|length }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Recent Price Changes -->
+    {% if summary.recent_changes %}
+    <div class="card">
+        <div class="section-title">
+            <div class="icon" style="background: #fff3e0;">💰</div>
+            Recent Price Changes
+        </div>
+        {% for c in summary.recent_changes|reverse %}
+        <div class="change-item">
+            <div>
+                <strong>{{ c.product }}</strong>
+                <span style="font-size: 0.75rem; color: #888; margin-left: 8px;">{{ c.timestamp[:10] }}</span>
+            </div>
+            <div>
+                <span class="change-old">£{{ "%.2f"|format(c.old_price) }}</span>
+                →
+                <span class="change-new">£{{ "%.2f"|format(c.new_price) }}</span>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Feature Usage -->
+    {% if summary.feature_usage %}
+    <div class="card">
+        <div class="section-title">
+            <div class="icon" style="background: #f3e5f5;">⚡</div>
+            Feature Usage
+        </div>
+        {% set max_count = summary.feature_usage.values()|map(attribute='count')|max %}
+        {% for feature, data in summary.feature_usage.items() %}
+        <div class="feature-bar">
+            <span style="min-width: 140px; font-weight: 600;">{{ feature.replace('_', ' ').title() }}</span>
+            <div class="bar-track">
+                <div class="bar-fill" style="width: {{ (data.count / max_count * 100)|int }}%;"></div>
+            </div>
+            <span class="count">{{ data.count }}</span>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Users -->
+    {% if summary.user_list %}
+    <div class="card">
+        <div class="section-title">
+            <div class="icon" style="background: #e8f5e9;">👥</div>
+            Registered Users ({{ summary.unique_users }})
+        </div>
+        <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+            {% for u in summary.user_list %}
+            <span class="badge badge-teal">{{ u }}</span>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

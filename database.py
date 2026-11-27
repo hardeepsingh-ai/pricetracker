@@ -23,6 +23,14 @@ DEFAULTS = {
     "transactions": {},
     "loyalty": {},
     "feedback": {},
+    "analytics": {
+        "events": [],
+        "daily_stats": {},
+        "user_sessions": {},
+        "scan_history": [],
+        "product_changes": [],
+        "feature_usage": {},
+    },
 }
 
 
@@ -2048,3 +2056,163 @@ def get_wrong_match_reports(username: str) -> list[dict]:
     owner = get_owner(username)
     db = _load()
     return [r for r in db.get("wrong_match_reports", []) if r["username"] == owner]
+
+
+# --- Analytics & Usage Tracking (for GTV evidence) ---
+
+def track_event(username: str, event_type: str, details: dict | None = None):
+    db = _load()
+    analytics = db.setdefault("analytics", DEFAULTS["analytics"].copy())
+    for k, v in DEFAULTS["analytics"].items():
+        analytics.setdefault(k, type(v)())
+    now = datetime.utcnow()
+    event = {
+        "user": username,
+        "event": event_type,
+        "details": details or {},
+        "timestamp": now.isoformat(),
+        "date": now.strftime("%Y-%m-%d"),
+    }
+    analytics["events"].append(event)
+    if len(analytics["events"]) > 5000:
+        analytics["events"] = analytics["events"][-5000:]
+    today = now.strftime("%Y-%m-%d")
+    daily = analytics["daily_stats"].setdefault(today, {
+        "logins": 0, "scans": 0, "page_views": 0,
+        "products_added": 0, "products_removed": 0,
+        "price_changes": 0, "report_exports": 0,
+        "search_queries": 0, "unique_users": [],
+    })
+    if event_type == "login":
+        daily["logins"] += 1
+    elif event_type == "scan":
+        daily["scans"] += 1
+    elif event_type == "page_view":
+        daily["page_views"] += 1
+    elif event_type == "product_added":
+        daily["products_added"] += 1
+    elif event_type == "product_removed":
+        daily["products_removed"] += 1
+    elif event_type == "price_change":
+        daily["price_changes"] += 1
+    elif event_type == "export":
+        daily["report_exports"] += 1
+    elif event_type == "product_search":
+        daily["search_queries"] += 1
+    if username not in daily.get("unique_users", []):
+        daily.setdefault("unique_users", []).append(username)
+    _save(db)
+
+
+def track_session(username: str):
+    db = _load()
+    analytics = db.setdefault("analytics", DEFAULTS["analytics"].copy())
+    for k, v in DEFAULTS["analytics"].items():
+        analytics.setdefault(k, type(v)())
+    sessions = analytics["user_sessions"].setdefault(username, [])
+    sessions.append(datetime.utcnow().isoformat())
+    if len(sessions) > 500:
+        analytics["user_sessions"][username] = sessions[-500:]
+    _save(db)
+
+
+def track_scan(username: str, products_count: int, matches_found: int):
+    db = _load()
+    analytics = db.setdefault("analytics", DEFAULTS["analytics"].copy())
+    for k, v in DEFAULTS["analytics"].items():
+        analytics.setdefault(k, type(v)())
+    analytics["scan_history"].append({
+        "user": username,
+        "products_scanned": products_count,
+        "matches_found": matches_found,
+        "timestamp": datetime.utcnow().isoformat(),
+    })
+    if len(analytics["scan_history"]) > 1000:
+        analytics["scan_history"] = analytics["scan_history"][-1000:]
+    _save(db)
+
+
+def track_price_change(username: str, product: str, old_price: float, new_price: float, reason: str = ""):
+    db = _load()
+    analytics = db.setdefault("analytics", DEFAULTS["analytics"].copy())
+    for k, v in DEFAULTS["analytics"].items():
+        analytics.setdefault(k, type(v)())
+    analytics["product_changes"].append({
+        "user": username,
+        "product": product,
+        "old_price": old_price,
+        "new_price": new_price,
+        "reason": reason,
+        "timestamp": datetime.utcnow().isoformat(),
+    })
+    if len(analytics["product_changes"]) > 2000:
+        analytics["product_changes"] = analytics["product_changes"][-2000:]
+    _save(db)
+
+
+def track_feature_usage(username: str, feature: str):
+    db = _load()
+    analytics = db.setdefault("analytics", DEFAULTS["analytics"].copy())
+    for k, v in DEFAULTS["analytics"].items():
+        analytics.setdefault(k, type(v)())
+    usage = analytics["feature_usage"]
+    feat = usage.setdefault(feature, {"count": 0, "users": [], "last_used": ""})
+    feat["count"] += 1
+    feat["last_used"] = datetime.utcnow().isoformat()
+    if username not in feat["users"]:
+        feat["users"].append(username)
+    _save(db)
+
+
+def get_analytics_summary(username: str) -> dict:
+    db = _load()
+    analytics = db.get("analytics", DEFAULTS["analytics"].copy())
+    events = analytics.get("events", [])
+    daily = analytics.get("daily_stats", {})
+    scans = analytics.get("scan_history", [])
+    changes = analytics.get("product_changes", [])
+    sessions = analytics.get("user_sessions", {})
+    features = analytics.get("feature_usage", {})
+
+    total_logins = sum(d.get("logins", 0) for d in daily.values())
+    total_scans = sum(d.get("scans", 0) for d in daily.values())
+    total_page_views = sum(d.get("page_views", 0) for d in daily.values())
+    total_searches = sum(d.get("search_queries", 0) for d in daily.values())
+    total_exports = sum(d.get("report_exports", 0) for d in daily.values())
+    total_price_changes = len(changes)
+
+    all_users = set()
+    for d in daily.values():
+        all_users.update(d.get("unique_users", []))
+
+    active_days = len(daily)
+    first_day = min(daily.keys()) if daily else "N/A"
+    last_day = max(daily.keys()) if daily else "N/A"
+
+    return {
+        "total_logins": total_logins,
+        "total_scans": total_scans,
+        "total_page_views": total_page_views,
+        "total_searches": total_searches,
+        "total_exports": total_exports,
+        "total_price_changes": total_price_changes,
+        "unique_users": len(all_users),
+        "user_list": sorted(all_users),
+        "active_days": active_days,
+        "first_activity": first_day,
+        "last_activity": last_day,
+        "daily_stats": daily,
+        "scan_history": scans[-20:],
+        "recent_changes": changes[-20:],
+        "feature_usage": features,
+        "total_events": len(events),
+    }
+
+
+def export_analytics_csv(username: str) -> str:
+    summary = get_analytics_summary(username)
+    lines = ["Date,Logins,Scans,Page Views,Searches,Products Added,Price Changes,Exports,Unique Users"]
+    for date in sorted(summary["daily_stats"].keys()):
+        d = summary["daily_stats"][date]
+        lines.append(f'{date},{d.get("logins",0)},{d.get("scans",0)},{d.get("page_views",0)},{d.get("search_queries",0)},{d.get("products_added",0)},{d.get("price_changes",0)},{d.get("report_exports",0)},{len(d.get("unique_users",[]))}')
+    return "\n".join(lines)
