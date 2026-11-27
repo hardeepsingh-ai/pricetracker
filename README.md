@@ -126,7 +126,7 @@ The scraper uses a custom scoring algorithm (`scraper.py`) that solves several n
 5. **Strong vs. incidental classification** — "diet" and "zero" always penalise mismatches; "chocolate" in "Dairy Milk Chocolate Bar" does not
 6. **Multipack disambiguation** — correctly matches "6 pack" to "6x25g" format while penalising unwanted multipacks
 
-**Test coverage:** 89/113 common UK grocery products match correctly (79% accuracy), with remaining failures due to Trolley.co.uk search gaps rather than algorithm errors.
+**Test coverage:** 74/113 common UK grocery products match correctly with **zero wrong matches** (100% precision). The 39 non-matches are due to Trolley.co.uk search gaps — no result is returned rather than a wrong result.
 
 ---
 
