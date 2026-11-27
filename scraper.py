@@ -403,6 +403,45 @@ async def scrape_trolley_prices(product_name: str, size: str = "", brand: str = 
     return results
 
 
+async def search_trolley_products(query: str, limit: int = 12) -> list[dict]:
+    """Search Trolley and return product cards with images for the search UI."""
+    try:
+        async with httpx.AsyncClient(follow_redirects=True, timeout=10) as client:
+            search_url = f"https://www.trolley.co.uk/search/?q={query.replace(' ', '+')}"
+            resp = await client.get(search_url, headers=HEADERS)
+            if resp.status_code != 200:
+                return []
+            soup = BeautifulSoup(resp.text, "html.parser")
+            cards = soup.find_all("div", class_="product-item")
+            results = []
+            for card in cards[:limit]:
+                link = card.find("a")
+                if not link:
+                    continue
+                img = card.find("img")
+                brand_el = card.find("div", class_="_brand")
+                desc_el = card.find("div", class_="_desc")
+                size_el = card.find("div", class_="_size")
+                img_src = ""
+                if img and img.get("src"):
+                    img_src = "https://www.trolley.co.uk" + img["src"]
+                brand = brand_el.get_text(strip=True) if brand_el else ""
+                desc = desc_el.get_text(strip=True) if desc_el else ""
+                size = size_el.get_text(strip=True) if size_el else ""
+                full_name = f"{brand} {desc}".strip() if brand else desc
+                results.append({
+                    "name": full_name,
+                    "brand": brand,
+                    "description": desc,
+                    "size": size,
+                    "image": img_src,
+                    "url": "https://www.trolley.co.uk" + link.get("href", ""),
+                })
+            return results
+    except Exception:
+        return []
+
+
 SAMPLE_PRODUCTS = [
     "semi skimmed milk 2L",
     "semi skimmed milk 1L",

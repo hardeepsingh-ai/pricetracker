@@ -1,36 +1,44 @@
 {% extends "base.html" %}
 {% block title %}Register — PriceTracker{% endblock %}
 {% block body %}
-<div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; background: #1a1a2e;">
-    <div class="card" style="width: 100%; max-width: 400px; margin: 20px;">
-        <h1 style="text-align: center; margin-bottom: 4px; font-size: 1.5rem;">
-            Price<span style="color: #4ecdc4;">Tracker</span>
-        </h1>
-        <p style="text-align: center; color: #888; margin-bottom: 24px; font-size: 0.9rem;">
-            Create your shop account
-        </p>
+<div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);">
+    <div style="width: 100%; max-width: 420px; margin: 20px;">
+        <div style="text-align: center; margin-bottom: 32px;">
+            <h1 style="font-size: 2rem; font-weight: 900; letter-spacing: -1px; color: white;">
+                Price<span style="color: #4ecdc4;">Tracker</span>
+            </h1>
+            <p style="color: rgba(255,255,255,0.5); font-size: 0.9rem; margin-top: 4px;">
+                Create your shop account
+            </p>
+        </div>
 
-        {% if error %}
-        <div class="error-msg">{{ error }}</div>
-        {% endif %}
+        <div class="card" style="border-radius: 20px; padding: 32px;">
+            {% if error %}
+            <div class="error-msg">{{ error }}</div>
+            {% endif %}
 
-        <form method="POST" action="/register">
-            <label>Shop Name</label>
-            <input type="text" name="shop_name" placeholder="e.g. Hilton Convenience Store" required>
+            <form method="POST" action="/register">
+                <label>Shop Name</label>
+                <input type="text" name="shop_name" placeholder="e.g. Hilton Convenience Store" required autofocus>
 
-            <label>Username</label>
-            <input type="text" name="username" placeholder="Choose a username" required>
+                <label>Username</label>
+                <input type="text" name="username" placeholder="Choose a username" required>
 
-            <label>Password</label>
-            <input type="password" name="password" placeholder="Choose a password" required>
+                <label>Password</label>
+                <input type="password" name="password" placeholder="Choose a password" required>
 
-            <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 8px;">
-                Create Account
-            </button>
-        </form>
+                <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 8px; padding: 12px; font-size: 1rem;">
+                    Create Account
+                </button>
+            </form>
 
-        <p style="text-align: center; margin-top: 16px; font-size: 0.85rem; color: #888;">
-            Already have an account? <a href="/login" style="color: #4ecdc4;">Sign in</a>
+            <p style="text-align: center; margin-top: 20px; font-size: 0.85rem; color: #888;">
+                Already have an account? <a href="/login" style="color: #4ecdc4; font-weight: 600; text-decoration: none;">Sign in</a>
+            </p>
+        </div>
+
+        <p style="text-align: center; margin-top: 20px; font-size: 0.75rem; color: rgba(255,255,255,0.3);">
+            Free for independent convenience stores
         </p>
     </div>
 </div>

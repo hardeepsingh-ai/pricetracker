@@ -2,45 +2,226 @@
 {% block title %}Setup — PriceTracker{% endblock %}
 {% block head %}
 <style>
+    .setup-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+    .setup-header h2 {
+        font-size: 1.4rem;
+        font-weight: 800;
+        letter-spacing: -0.5px;
+    }
+    .product-count {
+        font-size: 0.85rem;
+        color: #888;
+        font-weight: 500;
+    }
+
+    /* Search box */
+    .search-section { position: relative; }
+    .search-box {
+        position: relative;
+    }
+    .search-box input {
+        padding: 14px 18px 14px 44px;
+        font-size: 1rem;
+        border-radius: 14px;
+        border: 2px solid #e8eaed;
+        background: white;
+        margin-bottom: 0;
+    }
+    .search-box input:focus {
+        border-color: #4ecdc4;
+        box-shadow: 0 0 0 4px rgba(78,205,196,0.12);
+    }
+    .search-icon {
+        position: absolute;
+        left: 16px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #aaa;
+        font-size: 1.1rem;
+    }
+    .search-hint {
+        font-size: 0.78rem;
+        color: #999;
+        margin-top: 8px;
+        padding-left: 4px;
+    }
+
+    /* Search results grid */
+    .search-results {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+        gap: 12px;
+        margin-top: 16px;
+    }
+    .search-card {
+        background: white;
+        border: 2px solid #f0f2f5;
+        border-radius: 14px;
+        padding: 12px;
+        cursor: pointer;
+        transition: all 0.2s;
+        text-align: center;
+    }
+    .search-card:hover {
+        border-color: #4ecdc4;
+        box-shadow: 0 4px 16px rgba(78,205,196,0.15);
+        transform: translateY(-2px);
+    }
+    .search-card.selected {
+        border-color: #4ecdc4;
+        background: #f0fffe;
+    }
+    .search-card img {
+        width: 80px;
+        height: 80px;
+        object-fit: contain;
+        margin: 0 auto 8px;
+        display: block;
+        border-radius: 8px;
+    }
+    .search-card .sc-brand {
+        font-size: 0.7rem;
+        color: #4ecdc4;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    .search-card .sc-name {
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: #1a1a2e;
+        margin: 2px 0;
+        line-height: 1.3;
+    }
+    .search-card .sc-size {
+        font-size: 0.72rem;
+        color: #888;
+        font-weight: 500;
+    }
+
+    .search-loading {
+        text-align: center;
+        padding: 32px;
+        color: #aaa;
+        font-size: 0.9rem;
+    }
+    .search-loading .spinner {
+        display: inline-block;
+        width: 24px;
+        height: 24px;
+        border: 3px solid #e8eaed;
+        border-top-color: #4ecdc4;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+        margin-bottom: 8px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .search-empty {
+        text-align: center;
+        padding: 24px;
+        color: #aaa;
+        font-size: 0.85rem;
+    }
+
+    /* Add product form (shown after selecting) */
+    .add-form {
+        display: none;
+        margin-top: 16px;
+        padding-top: 16px;
+        border-top: 2px solid #f0f2f5;
+    }
+    .add-form.active { display: block; }
+    .add-form .selected-product {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        background: #f8fffe;
+        border: 2px solid #4ecdc4;
+        border-radius: 14px;
+        padding: 16px;
+        margin-bottom: 16px;
+    }
+    .add-form .selected-product img {
+        width: 64px;
+        height: 64px;
+        object-fit: contain;
+        border-radius: 8px;
+        flex-shrink: 0;
+    }
+    .add-form .sp-info { flex: 1; }
+    .add-form .sp-name { font-weight: 700; font-size: 1rem; }
+    .add-form .sp-meta { font-size: 0.82rem; color: #888; margin-top: 2px; }
+    .add-form .sp-change {
+        font-size: 0.78rem;
+        color: #4ecdc4;
+        cursor: pointer;
+        font-weight: 600;
+    }
+
     .form-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 12px;
     }
-    .form-grid .full-width {
-        grid-column: 1 / -1;
+    .form-grid .full-width { grid-column: 1 / -1; }
+
+    /* Or manual divider */
+    .or-divider {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        margin: 20px 0;
+        color: #ccc;
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 1px;
     }
-    .product-item {
+    .or-divider::before, .or-divider::after {
+        content: '';
+        flex: 1;
+        height: 1px;
+        background: #e8eaed;
+    }
+
+    /* Product list */
+    .product-list-item {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 12px 0;
-        border-bottom: 1px solid #f0f0f0;
+        padding: 14px 0;
+        border-bottom: 1px solid #f0f2f5;
+        gap: 12px;
     }
-    .product-item:last-child { border-bottom: none; }
-    .product-info { flex: 1; }
-    .product-name { font-weight: 700; }
-    .product-meta { font-size: 0.8rem; color: #888; margin-top: 2px; }
-    .category-badge {
-        display: inline-block;
-        font-size: 0.7rem;
-        padding: 2px 8px;
-        border-radius: 10px;
-        background: #e8f5e9;
-        color: #2e7d32;
-        margin-left: 6px;
+    .product-list-item:last-child { border-bottom: none; }
+    .pli-info { flex: 1; min-width: 0; }
+    .pli-name {
+        font-weight: 700;
+        font-size: 0.92rem;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
     }
-    .size-badge {
-        display: inline-block;
-        font-size: 0.7rem;
-        padding: 2px 8px;
-        border-radius: 10px;
-        background: #e3f2fd;
-        color: #1565c0;
-        margin-left: 4px;
+    .pli-meta { font-size: 0.78rem; color: #888; margin-top: 3px; }
+    .pli-price {
+        font-weight: 800;
+        font-size: 1.1rem;
+        color: #1a1a2e;
+        font-family: 'JetBrains Mono', monospace;
+        white-space: nowrap;
     }
+
     @media (max-width: 600px) {
         .form-grid { grid-template-columns: 1fr; }
+        .search-results { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
+        .setup-header { flex-direction: column; align-items: flex-start; gap: 4px; }
     }
 </style>
 {% endblock %}
@@ -55,15 +236,75 @@
 </nav>
 
 <div class="container">
-    <h2 style="margin-bottom: 16px;">Product Setup</h2>
+    <div class="setup-header">
+        <h2>Product Setup</h2>
+        <span class="product-count">{{ products|length }} product{{ 's' if products|length != 1 else '' }} added</span>
+    </div>
 
+    <!-- Search Section -->
     <div class="card">
-        <h3 style="margin-bottom: 12px;">Add Product</h3>
+        <div class="section-title">
+            <div class="icon" style="background: #e0f2f1;">🔍</div>
+            Search Products
+        </div>
+        <p style="font-size: 0.85rem; color: #888; margin-bottom: 12px;">
+            Find products from UK supermarkets with photos — click to add to your store
+        </p>
+        <div class="search-section">
+            <div class="search-box">
+                <span class="search-icon">🔎</span>
+                <input type="text" id="productSearch" placeholder="Search for a product... e.g. Coca-Cola 500ml" autocomplete="off">
+            </div>
+            <p class="search-hint">Type at least 3 characters to search across Trolley.co.uk</p>
+            <div id="searchResults"></div>
+        </div>
+
+        <!-- Add form (shown after selecting a product) -->
+        <div class="add-form" id="addForm">
+            <div class="selected-product">
+                <img id="selectedImg" src="" alt="">
+                <div class="sp-info">
+                    <div class="sp-name" id="selectedName"></div>
+                    <div class="sp-meta" id="selectedMeta"></div>
+                </div>
+                <span class="sp-change" onclick="clearSelection()">✕ Change</span>
+            </div>
+            <form method="post" action="/setup/add">
+                <input type="hidden" name="product_name" id="formProductName">
+                <input type="hidden" name="brand" id="formBrand">
+                <input type="hidden" name="size" id="formSize">
+                <div class="form-grid">
+                    <div>
+                        <label>Category</label>
+                        <select name="category" class="input">
+                            {% for cat in categories %}
+                            <option value="{{ cat }}">{{ cat }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label>Your Selling Price (£)</label>
+                        <input type="number" step="0.01" name="my_price" placeholder="1.50" required>
+                    </div>
+                    <div>
+                        <label>Cost Price (£) <span style="color:#aaa; font-size:0.75rem; text-transform:none; letter-spacing:0;">optional</span></label>
+                        <input type="number" step="0.01" name="cost_price" placeholder="0.99">
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width:100%; margin-top: 8px; padding: 12px;">
+                    Add to My Store
+                </button>
+            </form>
+        </div>
+
+        <div class="or-divider">or add manually</div>
+
+        <!-- Manual add form -->
         <form method="post" action="/setup/add">
             <div class="form-grid">
                 <div class="full-width">
                     <label>Product Name</label>
-                    <input type="text" name="product_name" list="suggestions" placeholder="e.g. Lucozade" required class="input">
+                    <input type="text" name="product_name" list="suggestions" placeholder="e.g. Lucozade Energy Orange 500ml" required>
                     <datalist id="suggestions">
                         {% for p in sample_products %}
                         <option value="{{ p }}">
@@ -71,59 +312,127 @@
                     </datalist>
                 </div>
                 <div>
-                    <label>Brand / Company</label>
-                    <input type="text" name="brand" placeholder="e.g. Warburtons, Coca-Cola" class="input">
+                    <label>Brand</label>
+                    <input type="text" name="brand" placeholder="e.g. Warburtons">
                 </div>
                 <div>
                     <label>Size / Variant</label>
-                    <input type="text" name="size" placeholder="e.g. 500ml, 6 pack" class="input">
+                    <input type="text" name="size" placeholder="e.g. 500ml">
                 </div>
                 <div>
                     <label>Category</label>
-                    <select name="category" class="input">
+                    <select name="category">
                         {% for cat in categories %}
                         <option value="{{ cat }}">{{ cat }}</option>
                         {% endfor %}
                     </select>
                 </div>
                 <div>
-                    <label>Your Selling Price (£)</label>
-                    <input type="number" step="0.01" name="my_price" placeholder="1.50" required class="input">
+                    <label>Selling Price (£)</label>
+                    <input type="number" step="0.01" name="my_price" placeholder="1.50" required>
                 </div>
                 <div>
-                    <label>Cost Price (£) <span style="color:#aaa; font-size:0.8rem;">optional</span></label>
-                    <input type="number" step="0.01" name="cost_price" placeholder="0.99" class="input">
+                    <label>Cost Price (£) <span style="color:#aaa; font-size:0.75rem; text-transform:none; letter-spacing:0;">optional</span></label>
+                    <input type="number" step="0.01" name="cost_price" placeholder="0.99">
                 </div>
             </div>
-            <button type="submit" class="btn btn-primary" style="width:100%; margin-top: 12px;">Add Product</button>
+            <button type="submit" class="btn btn-secondary" style="width:100%; margin-top: 8px;">
+                Add Manually
+            </button>
         </form>
     </div>
 
     {% if products %}
-    <div class="card" style="margin-top: 16px;">
-        <h3 style="margin-bottom: 8px;">Your Products ({{ products|length }})</h3>
+    <div class="card">
+        <div class="section-title">
+            <div class="icon" style="background: #e3f2fd;">📦</div>
+            Your Products ({{ products|length }})
+        </div>
         {% for product in products %}
-        <div class="product-item">
-            <div class="product-info">
-                <div class="product-name">
+        <div class="product-list-item">
+            <div class="pli-info">
+                <div class="pli-name">
                     {{ product.name }}
-                    {% if product.brand %}<span class="size-badge" style="background:#fff3e0;color:#e65100;">{{ product.brand }}</span>{% endif %}
-                    {% if product.size %}<span class="size-badge">{{ product.size }}</span>{% endif %}
-                    <span class="category-badge">{{ product.category | default('Other') }}</span>
+                    {% if product.brand %}<span class="badge badge-orange">{{ product.brand }}</span>{% endif %}
+                    {% if product.size %}<span class="badge badge-blue">{{ product.size }}</span>{% endif %}
+                    <span class="badge badge-green">{{ product.category | default('Other') }}</span>
                 </div>
-                <div class="product-meta">
+                <div class="pli-meta">
                     Selling: £{{ "%.2f"|format(product.price) }}
-                    {% if product.cost_price %} · Cost: £{{ "%.2f"|format(product.cost_price) }}{% endif %}
+                    {% if product.cost_price %} · Cost: £{{ "%.2f"|format(product.cost_price) }} · Margin: £{{ "%.2f"|format(product.price - product.cost_price) }}{% endif %}
                 </div>
             </div>
-            <form method="post" action="/setup/remove/{{ loop.index0 }}" style="margin:0;">
-                <button type="submit" class="btn btn-danger" style="padding: 4px 12px; font-size: 0.8rem;">Remove</button>
-            </form>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span class="pli-price">£{{ "%.2f"|format(product.price) }}</span>
+                <form method="post" action="/setup/remove/{{ loop.index0 }}" style="margin:0;">
+                    <button type="submit" class="btn btn-danger" style="padding: 6px 10px; font-size: 0.75rem; border-radius: 8px;">✕</button>
+                </form>
+            </div>
         </div>
         {% endfor %}
     </div>
     {% endif %}
 
-    <a href="/dashboard" class="btn btn-primary" style="display:block; text-align:center; margin-top: 16px;">Go to Dashboard</a>
+    <a href="/dashboard" class="btn btn-primary" style="display:block; text-align:center; margin-top: 8px; padding: 14px;">
+        Go to Dashboard →
+    </a>
 </div>
+
+<script>
+let searchTimer = null;
+let selectedProduct = null;
+
+document.getElementById('productSearch').addEventListener('input', function() {
+    clearTimeout(searchTimer);
+    const q = this.value.trim();
+    if (q.length < 3) {
+        document.getElementById('searchResults').innerHTML = '';
+        return;
+    }
+    document.getElementById('searchResults').innerHTML = '<div class="search-loading"><div class="spinner"></div><br>Searching Trolley.co.uk...</div>';
+    searchTimer = setTimeout(() => searchProducts(q), 400);
+});
+
+async function searchProducts(query) {
+    try {
+        const resp = await fetch('/api/search-products?q=' + encodeURIComponent(query));
+        const data = await resp.json();
+        if (!data.results || data.results.length === 0) {
+            document.getElementById('searchResults').innerHTML = '<div class="search-empty">No products found — try a different search term</div>';
+            return;
+        }
+        let html = '<div class="search-results">';
+        data.results.forEach(p => {
+            const imgHtml = p.image ? `<img src="${p.image}" alt="${p.name}" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 80 80%22><rect fill=%22%23f0f2f5%22 width=%2280%22 height=%2280%22/><text x=%2240%22 y=%2244%22 text-anchor=%22middle%22 fill=%22%23ccc%22 font-size=%2224%22>📦</text></svg>'">` : '<img src="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 80 80%22><rect fill=%22%23f0f2f5%22 width=%2280%22 height=%2280%22/><text x=%2240%22 y=%2244%22 text-anchor=%22middle%22 fill=%22%23ccc%22 font-size=%2224%22>📦</text></svg>">';
+            html += `<div class="search-card" onclick='selectProduct(${JSON.stringify(p).replace(/'/g, "&#39;")})'>
+                ${imgHtml}
+                <div class="sc-brand">${p.brand || ''}</div>
+                <div class="sc-name">${p.description || p.name}</div>
+                <div class="sc-size">${p.size || ''}</div>
+            </div>`;
+        });
+        html += '</div>';
+        document.getElementById('searchResults').innerHTML = html;
+    } catch(e) {
+        document.getElementById('searchResults').innerHTML = '<div class="search-empty">Search failed — please try again</div>';
+    }
+}
+
+function selectProduct(product) {
+    selectedProduct = product;
+    document.getElementById('selectedImg').src = product.image || '';
+    document.getElementById('selectedName').textContent = product.name;
+    document.getElementById('selectedMeta').textContent = [product.brand, product.size].filter(Boolean).join(' · ');
+    document.getElementById('formProductName').value = product.name;
+    document.getElementById('formBrand').value = product.brand || '';
+    document.getElementById('formSize').value = product.size || '';
+    document.getElementById('addForm').classList.add('active');
+    document.getElementById('addForm').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function clearSelection() {
+    selectedProduct = null;
+    document.getElementById('addForm').classList.remove('active');
+}
+</script>
 {% endblock %}

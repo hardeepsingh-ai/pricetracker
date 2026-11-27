@@ -34,7 +34,7 @@ from database import (
     get_store_layout_heatmap, get_trust_dashboard,
     report_wrong_match,
 )
-from scraper import scrape_trolley_prices, SAMPLE_PRODUCTS, CATEGORIES
+from scraper import scrape_trolley_prices, search_trolley_products, SAMPLE_PRODUCTS, CATEGORIES
 import logging
 logging.basicConfig(level=logging.INFO)
 
@@ -285,6 +285,17 @@ async def report_wrong_match_api(request: Request):
         return {"error": "missing product_name"}
     report_wrong_match(user, product_name, matched_product, reason)
     return {"success": True, "message": "Report submitted — thank you for helping improve accuracy"}
+
+
+@app.get("/api/search-products")
+async def search_products(request: Request, q: str = ""):
+    user = get_current_user(request)
+    if not user:
+        return {"error": "not logged in"}
+    if not q or len(q) < 2:
+        return {"results": []}
+    results = await search_trolley_products(q.strip())
+    return {"results": results}
 
 
 @app.get("/api/basket")
