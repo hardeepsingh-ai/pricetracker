@@ -144,6 +144,7 @@ def _match_score(card_title: str, product_name: str, brand: str, size: str) -> f
         "mens", "womens", "men", "women", "kids",
         "spreadable",
         "kitchen", "bathroom", "surface",
+        "gold", "luxury", "premium", "extra strong",
     ]
     # "flavour" variants: penalise when title has a DIFFERENT flavour
     # Check longest first so "cheese and onion" matches before "cheese"
@@ -158,7 +159,9 @@ def _match_score(card_title: str, product_name: str, brand: str, size: str) -> f
         "prawn cocktail", "ready salted", "roast chicken",
         "sweet chilli", "sea salt", "black pepper",
         "pickled onion", "worcester sauce",
-        "creamy vanilla", "holiday",
+        "creamy vanilla", "holiday", "festive", "trifle",
+        "gingerbread", "gingerbread flavour",
+        "deluxe", "west country cream",
         "fruit and nut", "whole nut", "oreo",
         "pepperoni", "margherita", "ham and pineapple",
         "cream swirl", "caramel nut crunch", "fruit and nut crunch",
