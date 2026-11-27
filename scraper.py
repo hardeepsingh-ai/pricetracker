@@ -141,7 +141,9 @@ def _match_score(card_title: str, product_name: str, brand: str, size: str) -> f
         "caffeine free", "decaf", "light",
         "vegan", "meat free", "non dairy", "plant based",
         "alcohol free", "lactose free", "gluten free",
-        "mens", "womens", "kids",
+        "mens", "womens", "men", "women", "kids",
+        "spreadable",
+        "kitchen", "bathroom", "surface",
     ]
     # "flavour" variants: penalise when title has a DIFFERENT flavour
     # Check longest first so "cheese and onion" matches before "cheese"
@@ -159,7 +161,7 @@ def _match_score(card_title: str, product_name: str, brand: str, size: str) -> f
         "creamy vanilla", "holiday",
         "fruit and nut", "whole nut", "oreo",
         "pepperoni", "margherita", "ham and pineapple",
-        "caramel nut crunch", "fruit and nut crunch",
+        "cream swirl", "caramel nut crunch", "fruit and nut crunch",
         "sugar free",
         "vanilla", "cherry", "lime", "lemon", "strawberry", "mango",
         "chocolate", "caramel", "toffee", "mint", "raspberry",
@@ -219,10 +221,10 @@ def _match_score(card_title: str, product_name: str, brand: str, size: str) -> f
                            "milk", "bread", "roll", "rolls", "cream",
                            "natural", "mineral", "energy", "original", "classic",
                            "slightly", "block", "spread", "spreadable",
-                           "sliced", "medium", "thick", "thin", "soft",
+                           "sliced", "soft",
                            "free", "range", "large", "small", "extra",
                            "snack", "flavour", "taste", "style", "type",
-                           "gentle", "clean", "tissue", "toilet", "kitchen",
+                           "gentle", "clean", "tissue", "toilet",
                            "liquid", "powder", "gel", "wash", "soap",
                            "anti", "dandruff", "sensitive", "supreme",
                            "moisturising", "nourishing", "conditioning",
