@@ -324,6 +324,14 @@ async def scrape_trolley_prices(product_name: str, size: str = "", brand: str = 
             product_title = re.sub(r"\d+\s*£.*", "", product_title).strip()
             product_title = re.sub(r"^\d+\.?\d*\s*(ml|l|g|kg|pts?|pints?)\s*,?\s*\d*\s*(pts?|pints?)?\s*", "", product_title, flags=re.I).strip()
 
+            # Compute confidence level from match score
+            if best_score >= 70:
+                confidence = "high"
+            elif best_score >= 45:
+                confidence = "medium"
+            else:
+                confidence = "low"
+
             detail = await client.get(product_url, headers=HEADERS)
             if detail.status_code != 200:
                 return []
@@ -388,6 +396,8 @@ async def scrape_trolley_prices(product_name: str, size: str = "", brand: str = 
             "store": store,
             "url": product_url,
             "scraped_at": datetime.utcnow().isoformat(),
+            "confidence": confidence,
+            "match_score": round(best_score, 1),
         })
 
     return results

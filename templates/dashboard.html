@@ -51,6 +51,24 @@
     .competitor-tag.expensive { background: #f0fff0; color: #27ae60; }
     .competitor-tag.same { background: #f5f5f5; color: #888; }
     .history-btn { font-size: 0.68rem; padding: 2px 6px; border-radius: 8px; background: #e3f2fd; color: #1565c0; border: none; cursor: pointer; margin-left: 6px; }
+    .report-btn { font-size: 0.68rem; padding: 2px 6px; border-radius: 8px; background: #fff3e0; color: #e65100; border: none; cursor: pointer; margin-left: 4px; }
+    .report-btn:hover { background: #ffe0b2; }
+
+    .confidence-badge { font-size: 0.62rem; padding: 2px 6px; border-radius: 8px; font-weight: 600; margin-left: 4px; }
+    .confidence-high { background: #e8f5e9; color: #2e7d32; }
+    .confidence-medium { background: #fff3e0; color: #e65100; }
+    .confidence-low { background: #fce4ec; color: #c62828; }
+    .confidence-unknown { background: #f5f5f5; color: #888; }
+
+    .strategy-tag { font-size: 0.68rem; padding: 2px 8px; border-radius: 8px; font-weight: 600; }
+    .strategy-raise { background: #e8f5e9; color: #2e7d32; }
+    .strategy-lower { background: #fff3e0; color: #e65100; }
+    .strategy-hold { background: #e3f2fd; color: #1565c0; }
+    .strategy-footfall { background: #f3e5f5; color: #7b1fa2; }
+
+    .profit-impact { font-size: 0.72rem; font-weight: 600; margin-left: 8px; }
+    .profit-up { color: #2e7d32; }
+    .profit-down { color: #c62828; }
 
     .btn-row { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
     .btn-row .btn { flex: 1; min-width: 120px; text-align: center; padding: 12px; font-size: 0.9rem; }
@@ -177,10 +195,23 @@
                             {% if item.brand %}<span class="product-size" style="color:#e65100;">{{ item.brand }}</span>{% endif %}
                             {% if item.size %}<span class="product-size">{{ item.size }}</span>{% endif %}
                             <button class="history-btn" onclick="showHistory('{{ item.name }}')">History</button>
+                            {% if item.confidence and item.confidence != 'unknown' %}
+                            <span class="confidence-badge confidence-{{ item.confidence }}" title="Match confidence: {{ item.match_score }}">
+                                {% if item.confidence == 'high' %}✓ High match
+                                {% elif item.confidence == 'medium' %}⚠ Check match
+                                {% else %}⚠ Low match{% endif %}
+                            </span>
+                            {% endif %}
+                            {% if item.competitors %}
+                            <button class="report-btn" onclick="reportWrongMatch('{{ item.name }}', '{{ item.matched_product|default("") }}')" title="Report if this matched the wrong product">⚑ Wrong?</button>
+                            {% endif %}
                             {% if item.stock_status != 'in_stock' %}
                             <span class="stock-badge stock-{{ item.stock_status }}">{{ item.stock_status|replace('_',' ') }}</span>
                             {% endif %}
                         </div>
+                        {% if item.matched_product %}
+                        <div style="font-size: 0.7rem; color: #888; margin-top: 1px;">Matched: {{ item.matched_product }}</div>
+                        {% endif %}
                         <div class="margin-row">
                             {% if item.cost_price %}
                             <span>Cost: £{{ "%.2f"|format(item.cost_price) }}</span>
@@ -193,10 +224,23 @@
                             {% endif %}
                         </div>
                         {% if item.recommended_price %}
-                        <div style="margin-top: 2px;">
-                            <span class="recommended">AI Suggested: £{{ "%.2f"|format(item.recommended_price) }}</span>
-                            <span class="elasticity-tag elasticity-{{ item.elasticity }}">{{ item.recommendation_reason }}</span>
+                        <div style="margin-top: 4px;">
+                            <span class="recommended">💡 Suggested: £{{ "%.2f"|format(item.recommended_price) }}</span>
+                            {% if item.strategy %}
+                            <span class="strategy-tag {% if 'raise' in item.strategy or 'increase' in item.strategy %}strategy-raise{% elif 'lower' in item.strategy or 'reduce' in item.strategy %}strategy-lower{% elif 'footfall' in item.strategy %}strategy-footfall{% else %}strategy-hold{% endif %}">
+                                {% if 'raise' in item.strategy or 'increase' in item.strategy or 'protect' in item.strategy %}↑ Raise
+                                {% elif 'lower' in item.strategy or 'reduce' in item.strategy %}↓ Lower
+                                {% elif 'footfall' in item.strategy %}🏪 Footfall driver
+                                {% elif 'hold' in item.strategy %}→ Hold{% endif %}
+                            </span>
+                            {% endif %}
+                            {% if item.profit_change and item.profit_change != 0 %}
+                            <span class="profit-impact {{ 'profit-up' if item.profit_change > 0 else 'profit-down' }}">
+                                {{ '+' if item.profit_change > 0 else '' }}£{{ "%.2f"|format(item.profit_change) }}/day
+                            </span>
+                            {% endif %}
                         </div>
+                        <div style="font-size: 0.72rem; color: #666; margin-top: 1px;">{{ item.recommendation_reason }}</div>
                         {% endif %}
                     </div>
                     <div style="text-align: right; white-space: nowrap;">
@@ -245,6 +289,21 @@
     </div>
 </div>
 
+<div class="modal-overlay" id="reportModal">
+    <div class="modal">
+        <button class="modal-close" onclick="document.getElementById('reportModal').classList.remove('active')">&times;</button>
+        <h3>⚑ Report Wrong Match</h3>
+        <p style="font-size: 0.82rem; color: #666; margin-bottom: 12px;">Help us improve — if the matched supermarket product is wrong, let us know.</p>
+        <label>Your Product</label>
+        <input id="reportProduct" type="text" class="input" readonly>
+        <label>Matched Product</label>
+        <input id="reportMatched" type="text" class="input" readonly>
+        <label>What's wrong? (optional)</label>
+        <input id="reportReason" type="text" class="input" placeholder="e.g. It matched a different flavour">
+        <button class="btn btn-primary" onclick="submitReport()" style="margin-top: 8px;">Submit Report</button>
+    </div>
+</div>
+
 {% if not is_owner %}
 <div class="modal-overlay" id="requestModal">
     <div class="modal">
@@ -264,6 +323,31 @@
 {% endif %}
 
 <script>
+function reportWrongMatch(productName, matchedProduct) {
+    document.getElementById('reportProduct').value = productName;
+    document.getElementById('reportMatched').value = matchedProduct;
+    document.getElementById('reportReason').value = '';
+    document.getElementById('reportModal').classList.add('active');
+}
+
+async function submitReport() {
+    const product = document.getElementById('reportProduct').value;
+    const matched = document.getElementById('reportMatched').value;
+    const reason = document.getElementById('reportReason').value;
+    try {
+        const resp = await fetch('/api/report-wrong-match', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({product_name: product, matched_product: matched, reason: reason})
+        });
+        const data = await resp.json();
+        if (data.success) {
+            document.getElementById('reportModal').classList.remove('active');
+            alert('Thank you! Report submitted successfully.');
+        }
+    } catch(e) { alert('Failed to submit report'); }
+}
+
 async function runScan() {
     const btn = document.getElementById('scanBtn');
     btn.textContent = 'Scanning...';

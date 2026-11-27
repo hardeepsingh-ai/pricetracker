@@ -32,6 +32,7 @@ from database import (
     get_ai_recommendations, get_sentiment_analysis, get_predictive_analytics,
     get_price_elasticity, get_churn_prediction, get_personalised_promotions,
     get_store_layout_heatmap, get_trust_dashboard,
+    report_wrong_match,
 )
 from scraper import scrape_trolley_prices, SAMPLE_PRODUCTS, CATEGORIES
 import logging
@@ -269,6 +270,21 @@ async def clear_alerts_api(request: Request):
         return {"error": "not logged in"}
     clear_alerts(user)
     return {"success": True}
+
+
+@app.post("/api/report-wrong-match")
+async def report_wrong_match_api(request: Request):
+    user = get_current_user(request)
+    if not user:
+        return {"error": "not logged in"}
+    body = await request.json()
+    product_name = body.get("product_name", "")
+    matched_product = body.get("matched_product", "")
+    reason = body.get("reason", "")
+    if not product_name:
+        return {"error": "missing product_name"}
+    report_wrong_match(user, product_name, matched_product, reason)
+    return {"success": True, "message": "Report submitted — thank you for helping improve accuracy"}
 
 
 @app.get("/api/basket")

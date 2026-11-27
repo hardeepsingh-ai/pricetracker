@@ -442,9 +442,14 @@ def save_competitor_prices(username: str, product_name: str, prices: list[dict])
     if len(alerts) > 50:
         db["alerts"][owner] = alerts[-50:]
 
+    confidence = prices[0].get("confidence", "unknown") if prices else "unknown"
+    match_score = prices[0].get("match_score", 0) if prices else 0
     db["competitor_prices"][key] = {
         "prices": prices,
         "updated_at": datetime.utcnow().isoformat(),
+        "confidence": confidence,
+        "match_score": match_score,
+        "matched_product": prices[0].get("product_name", "") if prices else "",
     }
     db.setdefault("price_history", []).append({
         "username": owner,
@@ -571,43 +576,119 @@ def get_daily_sales(username: str) -> dict:
 # --- Smart Pricing ---
 
 def get_smart_recommendation(my_price: float, cost_price: float | None, competitors: list[dict],
-                              target_margin: float = 25) -> dict:
+                              target_margin: float = 25, units_per_day: float = 0,
+                              category: str = "") -> dict:
     if not competitors:
         return {"recommended": None, "reason": "No competitor data", "elasticity": "unknown",
-                "avg_competitor": 0, "cheapest_competitor": 0, "price_spread": 0}
+                "strategy": "", "avg_competitor": 0, "cheapest_competitor": 0, "price_spread": 0,
+                "potential_daily_profit": 0, "profit_change": 0}
 
     prices = [c["price"] for c in competitors]
     avg = sum(prices) / len(prices)
     cheapest = min(prices)
     most_exp = max(prices)
+    spread = most_exp - cheapest
 
     if cost_price and cost_price > 0:
         min_price = round(cost_price * (1 + target_margin / 100), 2)
+        current_margin = my_price - cost_price
     else:
         min_price = round(avg * 0.85, 2)
+        current_margin = None
 
+    # Convenience store categories where customers pay a premium for access
+    impulse_categories = {"Drinks", "Snacks", "Confectionery"}
+    # Staples where being competitive drives footfall
+    footfall_categories = {"Dairy", "Bread & Bakery", "Frozen"}
+
+    is_impulse = category in impulse_categories
+    is_footfall = category in footfall_categories
+
+    # Strategy 1: HIGH OPPORTUNITY — you're way cheaper, leaving money on the table
     if my_price < cheapest * 0.85:
-        recommended = round(cheapest * 0.95, 2)
-        reason = "You're significantly cheaper than all competitors — you could raise this price"
+        if is_impulse:
+            recommended = round(min(cheapest * 0.98, avg * 0.95), 2)
+            reason = "Impulse buy — customers pay convenience premium, raise to near supermarket price"
+            strategy = "raise_to_capture_margin"
+        else:
+            recommended = round(cheapest * 0.95, 2)
+            reason = "Much cheaper than supermarkets — raise price to increase profit without losing sales"
+            strategy = "raise_to_capture_margin"
         elasticity = "high_opportunity"
+
+    # Strategy 2: OVERPRICED — you're more expensive than everyone
     elif my_price > most_exp:
-        recommended = round(avg * 0.97, 2)
-        reason = "You're the most expensive — consider matching the average"
+        if is_footfall:
+            recommended = round(avg, 2)
+            reason = "Staple item — match average to drive footfall, customers buy more when they come in"
+            strategy = "match_to_drive_footfall"
+        else:
+            recommended = round(avg * 0.97, 2)
+            reason = "Most expensive — lower to average to stay competitive"
+            strategy = "lower_to_compete"
         elasticity = "overpriced"
+
+    # Strategy 3: SLIGHTLY ABOVE AVERAGE — the sweet spot for convenience
+    elif my_price > avg:
+        if is_impulse and my_price <= most_exp * 0.95:
+            recommended = my_price
+            reason = "Sweet spot — above average but below max, good margin for convenience item"
+            strategy = "hold_price"
+        elif spread < 0.30:
+            recommended = my_price
+            reason = "Tight price range across stores — hold your price, margin matters more here"
+            strategy = "hold_price"
+        else:
+            recommended = round(avg * 0.97, 2)
+            reason = "Priced above average — small reduction could increase sales volume"
+            strategy = "small_reduction"
+        elasticity = "competitive"
+
+    # Strategy 4: BELOW AVERAGE — good for footfall, but check margin
+    elif my_price < avg:
+        if current_margin and current_margin < 0.20:
+            recommended = round(avg * 0.97, 2)
+            reason = "Very thin margin — raise toward average to protect profit"
+            strategy = "raise_to_protect_margin"
+            elasticity = "high_opportunity"
+        elif is_footfall:
+            recommended = my_price
+            reason = "Good footfall price — keeping this competitive brings customers in for other purchases"
+            strategy = "hold_as_footfall_driver"
+            elasticity = "competitive"
+        else:
+            recommended = round(avg * 0.97, 2)
+            reason = "Below average — you could raise slightly and still be competitive"
+            strategy = "small_increase"
+            elasticity = "high_opportunity"
+
     else:
         recommended = round(avg * 0.97, 2)
-        reason = "Priced competitively"
+        reason = "Priced at market average"
+        strategy = "hold_price"
         elasticity = "competitive"
 
     recommended = max(recommended, min_price)
+
+    # Calculate profit impact
+    potential_daily_profit = 0
+    profit_change = 0
+    if current_margin is not None and units_per_day > 0:
+        new_margin = recommended - cost_price
+        potential_daily_profit = round(new_margin * units_per_day, 2)
+        current_daily_profit = round(current_margin * units_per_day, 2)
+        profit_change = round(potential_daily_profit - current_daily_profit, 2)
 
     return {
         "recommended": recommended,
         "reason": reason,
         "elasticity": elasticity,
+        "strategy": strategy,
         "avg_competitor": round(avg, 2),
         "cheapest_competitor": round(cheapest, 2),
-        "price_spread": round(most_exp - cheapest, 2),
+        "price_spread": round(spread, 2),
+        "potential_daily_profit": potential_daily_profit,
+        "profit_change": profit_change,
     }
 
 
@@ -715,10 +796,12 @@ def get_dashboard_data(username: str) -> dict:
         margin = round(my_price - cost_price, 2) if cost_price else None
         margin_pct = round((margin / my_price) * 100, 1) if margin and my_price > 0 else None
 
-        smart = get_smart_recommendation(my_price, cost_price, competitor_prices, settings.get("target_margin", 25))
-
         stock_info = stock_data.get(name, {})
         units_per_day = sales_data.get(name, {}).get("units", 0)
+
+        smart = get_smart_recommendation(my_price, cost_price, competitor_prices,
+                                         settings.get("target_margin", 25), units_per_day,
+                                         product.get("category", "Other"))
         product_daily_profit = round(margin * units_per_day, 2) if margin and units_per_day else 0
         daily_profit += product_daily_profit
 
@@ -742,7 +825,13 @@ def get_dashboard_data(username: str) -> dict:
             "recommended_price": smart["recommended"],
             "recommendation_reason": smart["reason"],
             "elasticity": smart["elasticity"],
+            "strategy": smart.get("strategy", ""),
             "price_spread": smart.get("price_spread"),
+            "profit_change": smart.get("profit_change", 0),
+            "potential_daily_profit": smart.get("potential_daily_profit", 0),
+            "confidence": competitor_data.get("confidence", "unknown"),
+            "match_score": competitor_data.get("match_score", 0),
+            "matched_product": competitor_data.get("matched_product", ""),
             "competitors": competitor_prices,
             "cheapest": cheapest,
             "most_expensive": most_expensive,
@@ -1934,3 +2023,28 @@ def get_trust_dashboard(username: str) -> dict:
             "Price comparisons use publicly available supermarket prices",
         ],
     }
+
+
+# --- Wrong Match Reports ---
+
+def report_wrong_match(username: str, product_name: str, matched_product: str, reason: str = ""):
+    owner = get_owner(username)
+    db = _load()
+    reports = db.setdefault("wrong_match_reports", [])
+    reports.append({
+        "username": owner,
+        "product_name": product_name,
+        "matched_product": matched_product,
+        "reason": reason,
+        "timestamp": datetime.utcnow().isoformat(),
+        "resolved": False,
+    })
+    if len(reports) > 500:
+        db["wrong_match_reports"] = reports[-500:]
+    _save(db)
+
+
+def get_wrong_match_reports(username: str) -> list[dict]:
+    owner = get_owner(username)
+    db = _load()
+    return [r for r in db.get("wrong_match_reports", []) if r["username"] == owner]
