@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#4ecdc4">
+    <meta name="theme-color" content="#0a0a0a">
     <link rel="manifest" href="/manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -13,13 +13,13 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #f0f2f5;
-            color: #1a1a2e;
+            background: #0a0a0a;
+            color: #ffffff;
             min-height: 100vh;
             -webkit-font-smoothing: antialiased;
         }
         .navbar {
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            background: #111111;
             color: white;
             padding: 0 24px;
             display: flex;
@@ -29,16 +29,17 @@
             top: 0;
             z-index: 100;
             height: 56px;
-            box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+            box-shadow: 0 1px 0 rgba(255,255,255,0.06);
+            border-bottom: 1px solid #222;
         }
         .navbar h1 {
             font-size: 1.25rem;
             font-weight: 800;
             letter-spacing: -0.5px;
         }
-        .navbar h1 span { color: #4ecdc4; }
+        .navbar h1 span { color: #f5c518; }
         .navbar a {
-            color: rgba(255,255,255,0.7);
+            color: rgba(255,255,255,0.6);
             text-decoration: none;
             font-size: 0.85rem;
             font-weight: 500;
@@ -47,19 +48,19 @@
             transition: all 0.2s;
         }
         .navbar a:hover {
-            color: white;
-            background: rgba(255,255,255,0.1);
+            color: #f5c518;
+            background: rgba(245,197,24,0.08);
         }
         .nav-links { display: flex; gap: 4px; align-items: center; }
         .container { max-width: 960px; margin: 0 auto; padding: 24px 20px; }
 
         .card {
-            background: white;
+            background: #1a1a1a;
             border-radius: 16px;
             padding: 24px;
             margin-bottom: 16px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
-            border: 1px solid rgba(0,0,0,0.04);
+            box-shadow: none;
+            border: 1px solid #333;
         }
 
         .btn {
@@ -79,76 +80,75 @@
             font-family: inherit;
         }
         .btn-primary {
-            background: linear-gradient(135deg, #4ecdc4, #44b8b0);
-            color: #1a1a2e;
-            box-shadow: 0 2px 8px rgba(78,205,196,0.3);
+            background: #f5c518;
+            color: #0a0a0a;
         }
         .btn-primary:hover {
-            background: linear-gradient(135deg, #44b8b0, #3aa8a0);
-            box-shadow: 0 4px 12px rgba(78,205,196,0.4);
+            background: #e6b800;
             transform: translateY(-1px);
         }
         .btn-danger { background: #ff6b6b; color: white; }
         .btn-danger:hover { background: #ee5a5a; transform: translateY(-1px); }
         .btn-outline {
             background: transparent;
-            border: 2px solid #4ecdc4;
-            color: #4ecdc4;
+            border: 2px solid #f5c518;
+            color: #f5c518;
         }
-        .btn-outline:hover { background: rgba(78,205,196,0.08); }
+        .btn-outline:hover { background: rgba(245,197,24,0.08); }
         .btn-secondary {
-            background: #f0f2f5;
-            color: #555;
-            border: 1px solid #e0e0e0;
+            background: #222;
+            color: #a0a0a0;
+            border: 1px solid #333;
         }
-        .btn-secondary:hover { background: #e8eaed; }
+        .btn-secondary:hover { background: #2a2a2a; color: #fff; }
 
         input, select, textarea {
             width: 100%;
             padding: 10px 14px;
-            border: 2px solid #e8eaed;
+            border: 2px solid #333;
             border-radius: 10px;
             font-size: 0.9rem;
             font-family: inherit;
             margin-bottom: 12px;
             transition: all 0.2s;
-            background: #fafbfc;
+            background: #111;
+            color: #fff;
         }
         input:focus, select:focus, textarea:focus {
             outline: none;
-            border-color: #4ecdc4;
-            background: white;
-            box-shadow: 0 0 0 3px rgba(78,205,196,0.12);
+            border-color: #f5c518;
+            background: #1a1a1a;
+            box-shadow: 0 0 0 3px rgba(245,197,24,0.12);
         }
         label {
             display: block;
             font-weight: 600;
             margin-bottom: 4px;
             font-size: 0.8rem;
-            color: #555;
+            color: #a0a0a0;
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
 
         .error-msg {
-            background: #fff0f0;
-            color: #cc0000;
+            background: rgba(239,68,68,0.1);
+            color: #ff6b6b;
             padding: 10px 16px;
             border-radius: 10px;
             margin-bottom: 16px;
             font-size: 0.9rem;
-            border: 1px solid #ffe0e0;
+            border: 1px solid rgba(239,68,68,0.2);
         }
 
-        .status-cheapest { color: #27ae60; font-weight: 700; }
-        .status-mid_range { color: #f39c12; font-weight: 700; }
-        .status-most_expensive { color: #e74c3c; font-weight: 700; }
-        .status-no_data { color: #999; }
+        .status-cheapest { color: #22c55e; font-weight: 700; }
+        .status-mid_range { color: #f5c518; font-weight: 700; }
+        .status-most_expensive { color: #ef4444; font-weight: 700; }
+        .status-no_data { color: #666; }
 
         .section-title {
             font-size: 1.1rem;
             font-weight: 700;
-            color: #1a1a2e;
+            color: #ffffff;
             margin-bottom: 16px;
             display: flex;
             align-items: center;
@@ -173,11 +173,11 @@
             font-weight: 600;
             letter-spacing: 0.3px;
         }
-        .badge-green { background: #e8f5e9; color: #2e7d32; }
-        .badge-blue { background: #e3f2fd; color: #1565c0; }
-        .badge-orange { background: #fff3e0; color: #e65100; }
-        .badge-purple { background: #f3e5f5; color: #7b1fa2; }
-        .badge-teal { background: #e0f2f1; color: #00695c; }
+        .badge-green { background: rgba(34,197,94,0.15); color: #22c55e; }
+        .badge-blue { background: rgba(59,130,246,0.15); color: #60a5fa; }
+        .badge-orange { background: rgba(245,197,24,0.15); color: #f5c518; }
+        .badge-purple { background: rgba(168,85,247,0.15); color: #a855f7; }
+        .badge-teal { background: rgba(20,184,166,0.15); color: #14b8a6; }
 
         .mono { font-family: 'JetBrains Mono', monospace; }
 

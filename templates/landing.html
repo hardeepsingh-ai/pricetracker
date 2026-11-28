@@ -1,0 +1,1136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VeloStack — Smart Pricing for Convenience Stores</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --black: #0a0a0a;
+            --dark: #111111;
+            --dark-card: #1a1a1a;
+            --yellow: #f5c518;
+            --yellow-hover: #e6b800;
+            --white: #ffffff;
+            --grey-text: #a0a0a0;
+            --grey-light: #2a2a2a;
+            --grey-border: #333333;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--black);
+            color: var(--white);
+            line-height: 1.6;
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        a { text-decoration: none; color: inherit; }
+        img { max-width: 100%; display: block; }
+        button { cursor: pointer; border: none; font-family: inherit; }
+        input, textarea { font-family: inherit; }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+
+        /* ============ NAVBAR ============ */
+        .navbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            background: rgba(10, 10, 10, 0.92);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--grey-border);
+            padding: 16px 0;
+        }
+
+        .navbar .container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: 900;
+            letter-spacing: -0.5px;
+        }
+
+        .logo span { color: var(--yellow); }
+
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 32px;
+            list-style: none;
+        }
+
+        .nav-links a {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--grey-text);
+            transition: color 0.2s;
+        }
+
+        .nav-links a:hover { color: var(--white); }
+
+        .nav-cta {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .btn-ghost {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--white);
+            background: none;
+            padding: 10px 20px;
+            border: 1px solid var(--grey-border);
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+
+        .btn-ghost:hover {
+            border-color: var(--white);
+            background: rgba(255,255,255,0.05);
+        }
+
+        .btn-primary {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--black);
+            background: var(--yellow);
+            padding: 10px 24px;
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+
+        .btn-primary:hover { background: var(--yellow-hover); }
+
+        .mobile-menu-btn {
+            display: none;
+            background: none;
+            color: var(--white);
+            font-size: 28px;
+        }
+
+        /* ============ HERO ============ */
+        .hero {
+            padding: 160px 0 100px;
+            text-align: center;
+            position: relative;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(245, 197, 24, 0.08) 0%, transparent 70%);
+            pointer-events: none;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 16px;
+            border: 1px solid var(--grey-border);
+            border-radius: 50px;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--grey-text);
+            margin-bottom: 32px;
+        }
+
+        .hero-badge .dot {
+            width: 8px;
+            height: 8px;
+            background: #22c55e;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        .hero h1 {
+            font-size: clamp(42px, 6vw, 72px);
+            font-weight: 900;
+            line-height: 1.05;
+            letter-spacing: -2px;
+            margin-bottom: 24px;
+            text-wrap: balance;
+        }
+
+        .hero h1 .highlight { color: var(--yellow); }
+
+        .hero p {
+            font-size: 18px;
+            color: var(--grey-text);
+            max-width: 560px;
+            margin: 0 auto 40px;
+            line-height: 1.7;
+        }
+
+        .hero-cta {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .btn-large {
+            font-size: 16px;
+            font-weight: 700;
+            padding: 16px 36px;
+            border-radius: 10px;
+        }
+
+        .btn-large.primary {
+            color: var(--black);
+            background: var(--yellow);
+            transition: all 0.2s;
+        }
+
+        .btn-large.primary:hover { background: var(--yellow-hover); transform: translateY(-1px); }
+
+        .btn-large.ghost {
+            color: var(--white);
+            background: none;
+            border: 1px solid var(--grey-border);
+            transition: all 0.2s;
+        }
+
+        .btn-large.ghost:hover { border-color: var(--white); }
+
+        .hero-stats {
+            display: flex;
+            justify-content: center;
+            gap: 60px;
+            margin-top: 64px;
+            padding-top: 40px;
+            border-top: 1px solid var(--grey-border);
+        }
+
+        .hero-stats .stat h3 {
+            font-size: 36px;
+            font-weight: 900;
+            color: var(--yellow);
+            letter-spacing: -1px;
+        }
+
+        .hero-stats .stat p {
+            font-size: 14px;
+            color: var(--grey-text);
+            margin: 0;
+        }
+
+        /* ============ LOGOS BAR ============ */
+        .logos-bar {
+            padding: 60px 0;
+            border-top: 1px solid var(--grey-border);
+            border-bottom: 1px solid var(--grey-border);
+        }
+
+        .logos-bar p {
+            text-align: center;
+            font-size: 13px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--grey-text);
+            margin-bottom: 32px;
+        }
+
+        .logos-grid {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 48px;
+            flex-wrap: wrap;
+        }
+
+        .logo-item {
+            font-size: 18px;
+            font-weight: 800;
+            color: #555;
+            letter-spacing: -0.5px;
+            white-space: nowrap;
+        }
+
+        /* ============ FEATURES ============ */
+        .features {
+            padding: 100px 0;
+        }
+
+        .section-label {
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--yellow);
+            margin-bottom: 16px;
+        }
+
+        .section-title {
+            font-size: clamp(32px, 4vw, 48px);
+            font-weight: 900;
+            letter-spacing: -1.5px;
+            line-height: 1.1;
+            margin-bottom: 16px;
+            text-wrap: balance;
+        }
+
+        .section-subtitle {
+            font-size: 17px;
+            color: var(--grey-text);
+            max-width: 540px;
+            line-height: 1.7;
+            margin-bottom: 56px;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+        }
+
+        .feature-card {
+            background: var(--dark-card);
+            border: 1px solid var(--grey-border);
+            border-radius: 16px;
+            padding: 36px;
+            transition: all 0.3s;
+        }
+
+        .feature-card:hover {
+            border-color: var(--yellow);
+            transform: translateY(-4px);
+        }
+
+        .feature-icon {
+            width: 48px;
+            height: 48px;
+            background: var(--yellow);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+            font-size: 22px;
+        }
+
+        .feature-card h3 {
+            font-size: 19px;
+            font-weight: 800;
+            margin-bottom: 10px;
+            letter-spacing: -0.3px;
+        }
+
+        .feature-card p {
+            font-size: 14px;
+            color: var(--grey-text);
+            line-height: 1.7;
+        }
+
+        /* ============ HOW IT WORKS ============ */
+        .how-it-works {
+            padding: 100px 0;
+            background: var(--dark);
+        }
+
+        .how-it-works .section-label,
+        .how-it-works .section-title,
+        .how-it-works .section-subtitle {
+            text-align: center;
+        }
+
+        .how-it-works .section-subtitle {
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .steps {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 32px;
+            counter-reset: step;
+        }
+
+        .step {
+            text-align: center;
+            padding: 32px 20px;
+            position: relative;
+        }
+
+        .step-number {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: var(--yellow);
+            color: var(--black);
+            font-size: 22px;
+            font-weight: 900;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+        }
+
+        .step h3 {
+            font-size: 17px;
+            font-weight: 800;
+            margin-bottom: 8px;
+        }
+
+        .step p {
+            font-size: 14px;
+            color: var(--grey-text);
+            line-height: 1.6;
+        }
+
+        /* ============ TESTIMONIAL ============ */
+        .testimonial-section {
+            padding: 100px 0;
+            border-top: 1px solid var(--grey-border);
+        }
+
+        .testimonial-card {
+            max-width: 800px;
+            margin: 0 auto;
+            text-align: center;
+        }
+
+        .testimonial-card .stars {
+            color: var(--yellow);
+            font-size: 24px;
+            margin-bottom: 24px;
+            letter-spacing: 4px;
+        }
+
+        .testimonial-card blockquote {
+            font-size: 24px;
+            font-weight: 600;
+            line-height: 1.5;
+            margin-bottom: 32px;
+            letter-spacing: -0.3px;
+        }
+
+        .testimonial-author {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+        }
+
+        .testimonial-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: var(--yellow);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 900;
+            color: var(--black);
+            font-size: 18px;
+        }
+
+        .testimonial-author .info strong {
+            display: block;
+            font-size: 15px;
+        }
+
+        .testimonial-author .info span {
+            font-size: 13px;
+            color: var(--grey-text);
+        }
+
+        /* ============ PRICING ============ */
+        .pricing {
+            padding: 100px 0;
+            background: var(--dark);
+        }
+
+        .pricing .section-label,
+        .pricing .section-title,
+        .pricing .section-subtitle {
+            text-align: center;
+        }
+
+        .pricing .section-subtitle {
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .pricing-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+            max-width: 960px;
+            margin: 0 auto;
+        }
+
+        .pricing-card {
+            background: var(--dark-card);
+            border: 1px solid var(--grey-border);
+            border-radius: 16px;
+            padding: 36px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .pricing-card.featured {
+            border-color: var(--yellow);
+            position: relative;
+        }
+
+        .pricing-card.featured::before {
+            content: 'Most Popular';
+            position: absolute;
+            top: -12px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--yellow);
+            color: var(--black);
+            font-size: 12px;
+            font-weight: 700;
+            padding: 4px 16px;
+            border-radius: 50px;
+            white-space: nowrap;
+        }
+
+        .pricing-card h3 {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .pricing-card .price {
+            font-size: 42px;
+            font-weight: 900;
+            letter-spacing: -2px;
+            margin: 16px 0;
+        }
+
+        .pricing-card .price span {
+            font-size: 16px;
+            font-weight: 500;
+            color: var(--grey-text);
+            letter-spacing: 0;
+        }
+
+        .pricing-card .desc {
+            font-size: 14px;
+            color: var(--grey-text);
+            margin-bottom: 24px;
+        }
+
+        .pricing-features {
+            list-style: none;
+            margin-bottom: 32px;
+            flex: 1;
+        }
+
+        .pricing-features li {
+            font-size: 14px;
+            padding: 8px 0;
+            color: var(--grey-text);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .pricing-features li::before {
+            content: '✓';
+            color: var(--yellow);
+            font-weight: 700;
+        }
+
+        .pricing-card .btn-primary,
+        .pricing-card .btn-ghost {
+            width: 100%;
+            text-align: center;
+            padding: 14px;
+            font-size: 15px;
+        }
+
+        /* ============ FAQ ============ */
+        .faq {
+            padding: 100px 0;
+        }
+
+        .faq .section-label,
+        .faq .section-title {
+            text-align: center;
+        }
+
+        .faq .section-subtitle {
+            text-align: center;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .faq-list {
+            max-width: 720px;
+            margin: 0 auto;
+        }
+
+        .faq-item {
+            border-bottom: 1px solid var(--grey-border);
+        }
+
+        .faq-question {
+            width: 100%;
+            background: none;
+            color: var(--white);
+            padding: 24px 0;
+            font-size: 16px;
+            font-weight: 700;
+            text-align: left;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .faq-question .icon {
+            font-size: 24px;
+            color: var(--yellow);
+            transition: transform 0.3s;
+        }
+
+        .faq-item.active .faq-question .icon {
+            transform: rotate(45deg);
+        }
+
+        .faq-answer {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+
+        .faq-answer p {
+            padding: 0 0 24px;
+            font-size: 15px;
+            color: var(--grey-text);
+            line-height: 1.7;
+        }
+
+        .faq-item.active .faq-answer {
+            max-height: 200px;
+        }
+
+        /* ============ CTA BANNER ============ */
+        .cta-banner {
+            padding: 80px 0;
+            background: var(--dark);
+        }
+
+        .cta-box {
+            background: linear-gradient(135deg, var(--dark-card) 0%, #1f1a00 100%);
+            border: 1px solid var(--grey-border);
+            border-radius: 24px;
+            padding: 64px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .cta-box::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -20%;
+            width: 400px;
+            height: 400px;
+            background: radial-gradient(circle, rgba(245, 197, 24, 0.1) 0%, transparent 70%);
+            pointer-events: none;
+        }
+
+        .cta-box h2 {
+            font-size: clamp(28px, 3.5vw, 42px);
+            font-weight: 900;
+            letter-spacing: -1px;
+            margin-bottom: 16px;
+            text-wrap: balance;
+        }
+
+        .cta-box p {
+            font-size: 17px;
+            color: var(--grey-text);
+            max-width: 480px;
+            margin: 0 auto 32px;
+        }
+
+        /* ============ FOOTER ============ */
+        .footer {
+            padding: 60px 0 32px;
+            border-top: 1px solid var(--grey-border);
+        }
+
+        .footer-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr;
+            gap: 48px;
+            margin-bottom: 48px;
+        }
+
+        .footer-brand .logo {
+            margin-bottom: 16px;
+        }
+
+        .footer-brand p {
+            font-size: 14px;
+            color: var(--grey-text);
+            line-height: 1.7;
+            max-width: 280px;
+        }
+
+        .footer-col h4 {
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--white);
+            margin-bottom: 20px;
+        }
+
+        .footer-col ul {
+            list-style: none;
+        }
+
+        .footer-col li {
+            margin-bottom: 12px;
+        }
+
+        .footer-col a {
+            font-size: 14px;
+            color: var(--grey-text);
+            transition: color 0.2s;
+        }
+
+        .footer-col a:hover { color: var(--white); }
+
+        .footer-bottom {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 32px;
+            border-top: 1px solid var(--grey-border);
+        }
+
+        .footer-bottom p {
+            font-size: 13px;
+            color: var(--grey-text);
+        }
+
+        .social-links {
+            display: flex;
+            gap: 16px;
+        }
+
+        .social-links a {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            border: 1px solid var(--grey-border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            color: var(--grey-text);
+            transition: all 0.2s;
+        }
+
+        .social-links a:hover {
+            border-color: var(--yellow);
+            color: var(--yellow);
+        }
+
+        /* ============ RESPONSIVE ============ */
+        @media (max-width: 768px) {
+            .nav-links { display: none; }
+            .nav-cta { display: none; }
+            .mobile-menu-btn { display: block; }
+
+            .hero { padding: 120px 0 60px; }
+            .hero-stats { gap: 24px; flex-wrap: wrap; }
+            .hero-stats .stat h3 { font-size: 28px; }
+
+            .logos-grid { gap: 24px; }
+
+            .features-grid { grid-template-columns: 1fr; }
+
+            .steps { grid-template-columns: 1fr 1fr; }
+
+            .pricing-grid { grid-template-columns: 1fr; max-width: 400px; }
+
+            .footer-grid { grid-template-columns: 1fr 1fr; }
+
+            .cta-box { padding: 40px 24px; }
+        }
+
+        @media (max-width: 480px) {
+            .steps { grid-template-columns: 1fr; }
+            .footer-grid { grid-template-columns: 1fr; }
+            .footer-bottom { flex-direction: column; gap: 16px; text-align: center; }
+        }
+    </style>
+</head>
+<body>
+    <!-- NAVBAR -->
+    <nav class="navbar">
+        <div class="container">
+            <div class="logo">Velo<span>Stack</span></div>
+            <ul class="nav-links">
+                <li><a href="#features">Features</a></li>
+                <li><a href="#how-it-works">How It Works</a></li>
+                <li><a href="#pricing">Pricing</a></li>
+                <li><a href="#faq">FAQ</a></li>
+            </ul>
+            <div class="nav-cta">
+                <a href="/login"><button class="btn-ghost">Log In</button></a>
+                <a href="/register"><button class="btn-primary">Get Started Free</button></a>
+            </div>
+            <button class="mobile-menu-btn" onclick="document.querySelector('.nav-links').classList.toggle('show')">☰</button>
+        </div>
+    </nav>
+
+    <!-- HERO -->
+    <section class="hero">
+        <div class="container">
+            <div class="hero-badge">
+                <span class="dot"></span>
+                Now live — PriceTracker v1.0
+            </div>
+            <h1>Stop Losing Money on<br><span class="highlight">Wrong Prices.</span></h1>
+            <p>PriceTracker by VeloStack gives convenience store owners real-time competitor price comparisons, margin insights, and smart pricing — so you never undercut yourself again.</p>
+            <div class="hero-cta">
+                <a href="/register"><button class="btn-large primary">Start Free Trial</button></a>
+                <a href="#how-it-works"><button class="btn-large ghost">See How It Works</button></a>
+            </div>
+            <div class="hero-stats">
+                <div class="stat">
+                    <h3>2,400+</h3>
+                    <p>Products Tracked</p>
+                </div>
+                <div class="stat">
+                    <h3>12%</h3>
+                    <p>Avg Margin Increase</p>
+                </div>
+                <div class="stat">
+                    <h3>30s</h3>
+                    <p>Setup Time</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- LOGOS BAR -->
+    <section class="logos-bar">
+        <div class="container">
+            <p>Trusted by store owners across the UK</p>
+            <div class="logos-grid">
+                <span class="logo-item">Zafar's Mini Market</span>
+                <span class="logo-item">QuickStop Aberdeen</span>
+                <span class="logo-item">CityMart Glasgow</span>
+                <span class="logo-item">FreshCorner Edinburgh</span>
+                <span class="logo-item">DailyNeeds London</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- FEATURES -->
+    <section class="features" id="features">
+        <div class="container">
+            <div class="section-label">Features</div>
+            <h2 class="section-title">Everything you need to<br>price smarter.</h2>
+            <p class="section-subtitle">Built specifically for convenience store owners who want to stay competitive without spending hours checking prices.</p>
+
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">📊</div>
+                    <h3>Live Price Comparison</h3>
+                    <p>Compare your prices against Tesco, Sainsbury's, Asda and more — updated in real time from major UK retailers.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">💰</div>
+                    <h3>Margin Calculator</h3>
+                    <p>Instantly see your profit margin on every product. Know exactly how much you make on each sale.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🔍</div>
+                    <h3>Smart Search</h3>
+                    <p>Search any product by name or barcode. Get instant price comparisons across every major supermarket.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">📈</div>
+                    <h3>Price History</h3>
+                    <p>Track how prices change over time. Spot trends and adjust your pricing before competitors do.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🏪</div>
+                    <h3>Multi-Store Support</h3>
+                    <p>Manage pricing across multiple store locations from one dashboard. Perfect for growing businesses.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">📋</div>
+                    <h3>Export Reports</h3>
+                    <p>Download CSV reports of your pricing data, margins, and competitor comparisons for your records.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- HOW IT WORKS -->
+    <section class="how-it-works" id="how-it-works">
+        <div class="container">
+            <div class="section-label">How It Works</div>
+            <h2 class="section-title">Up and running in<br>under a minute.</h2>
+            <p class="section-subtitle">No complicated setup. No hardware. Just sign up and start saving.</p>
+
+            <div class="steps">
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <h3>Create Account</h3>
+                    <p>Sign up free in 30 seconds. No credit card required.</p>
+                </div>
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <h3>Add Products</h3>
+                    <p>Add the products you stock — by name, barcode, or bulk import.</p>
+                </div>
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <h3>Set Your Prices</h3>
+                    <p>Enter what you charge and your cost price. We calculate the rest.</p>
+                </div>
+                <div class="step">
+                    <div class="step-number">4</div>
+                    <h3>See Insights</h3>
+                    <p>Get real-time comparisons, margin analysis, and pricing suggestions.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- TESTIMONIAL -->
+    <section class="testimonial-section">
+        <div class="container">
+            <div class="testimonial-card">
+                <div class="stars">★★★★★</div>
+                <blockquote>"PriceTracker completely changed how I price my products. I was losing money on 30% of my stock without even knowing. Now I make better decisions in seconds."</blockquote>
+                <div class="testimonial-author">
+                    <div class="testimonial-avatar">Z</div>
+                    <div class="info">
+                        <strong>Zafar Iqbal</strong>
+                        <span>Store Owner, Aberdeen</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- PRICING -->
+    <section class="pricing" id="pricing">
+        <div class="container">
+            <div class="section-label">Pricing</div>
+            <h2 class="section-title">Simple, transparent pricing.</h2>
+            <p class="section-subtitle">Start free. Upgrade when you're ready.</p>
+
+            <div class="pricing-grid">
+                <div class="pricing-card">
+                    <h3>Starter</h3>
+                    <div class="price">Free</div>
+                    <p class="desc">Perfect for trying it out</p>
+                    <ul class="pricing-features">
+                        <li>Up to 50 products</li>
+                        <li>Basic price comparison</li>
+                        <li>Margin calculator</li>
+                        <li>1 store location</li>
+                    </ul>
+                    <a href="/register"><button class="btn-ghost" style="width:100%">Get Started</button></a>
+                </div>
+                <div class="pricing-card featured">
+                    <h3>Pro</h3>
+                    <div class="price">£9.99<span>/mo</span></div>
+                    <p class="desc">For serious store owners</p>
+                    <ul class="pricing-features">
+                        <li>Unlimited products</li>
+                        <li>Real-time price alerts</li>
+                        <li>Price history & trends</li>
+                        <li>CSV export & reports</li>
+                        <li>Up to 3 store locations</li>
+                    </ul>
+                    <a href="/register"><button class="btn-primary" style="width:100%">Start Free Trial</button></a>
+                </div>
+                <div class="pricing-card">
+                    <h3>Enterprise</h3>
+                    <div class="price">Custom</div>
+                    <p class="desc">For chains & franchises</p>
+                    <ul class="pricing-features">
+                        <li>Everything in Pro</li>
+                        <li>Unlimited locations</li>
+                        <li>API access</li>
+                        <li>Dedicated support</li>
+                        <li>Custom integrations</li>
+                    </ul>
+                    <button class="btn-ghost" style="width:100%">Contact Sales</button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- FAQ -->
+    <section class="faq" id="faq">
+        <div class="container">
+            <div class="section-label">FAQ</div>
+            <h2 class="section-title">Got questions?</h2>
+            <p class="section-subtitle">Everything you need to know about PriceTracker.</p>
+
+            <div class="faq-list">
+                <div class="faq-item active">
+                    <button class="faq-question" onclick="toggleFaq(this)">
+                        How does PriceTracker get competitor prices?
+                        <span class="icon">+</span>
+                    </button>
+                    <div class="faq-answer">
+                        <p>We aggregate pricing data from major UK retailers including Tesco, Sainsbury's, Asda, Morrisons, and more. Prices are updated regularly to ensure accuracy.</p>
+                    </div>
+                </div>
+                <div class="faq-item">
+                    <button class="faq-question" onclick="toggleFaq(this)">
+                        Is there a free plan?
+                        <span class="icon">+</span>
+                    </button>
+                    <div class="faq-answer">
+                        <p>Yes! Our Starter plan is completely free and lets you track up to 50 products with basic price comparison. No credit card required.</p>
+                    </div>
+                </div>
+                <div class="faq-item">
+                    <button class="faq-question" onclick="toggleFaq(this)">
+                        Can I use it for multiple stores?
+                        <span class="icon">+</span>
+                    </button>
+                    <div class="faq-answer">
+                        <p>Absolutely. The Pro plan supports up to 3 locations, and our Enterprise plan offers unlimited stores — perfect for chains and franchises.</p>
+                    </div>
+                </div>
+                <div class="faq-item">
+                    <button class="faq-question" onclick="toggleFaq(this)">
+                        How is this different from checking prices manually?
+                        <span class="icon">+</span>
+                    </button>
+                    <div class="faq-answer">
+                        <p>Manual price checking takes hours and is outdated by the time you finish. PriceTracker gives you live data, margin calculations, and trend analysis — all in one dashboard, instantly.</p>
+                    </div>
+                </div>
+                <div class="faq-item">
+                    <button class="faq-question" onclick="toggleFaq(this)">
+                        What retailers do you compare against?
+                        <span class="icon">+</span>
+                    </button>
+                    <div class="faq-answer">
+                        <p>We compare against Tesco, Sainsbury's, Asda, Morrisons, Aldi, Lidl, and other major UK supermarkets. We're constantly adding more sources.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA BANNER -->
+    <section class="cta-banner">
+        <div class="container">
+            <div class="cta-box">
+                <h2>Ready to stop guessing<br>your prices?</h2>
+                <p>Join store owners who are already pricing smarter with PriceTracker by VeloStack.</p>
+                <a href="/register"><button class="btn-large primary">Get Started Free</button></a>
+            </div>
+        </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-grid">
+                <div class="footer-brand">
+                    <div class="logo">Velo<span>Stack</span></div>
+                    <p>Building smart tools for small businesses. PriceTracker is the first product by VeloStack — more coming soon.</p>
+                </div>
+                <div class="footer-col">
+                    <h4>Product</h4>
+                    <ul>
+                        <li><a href="#features">Features</a></li>
+                        <li><a href="#pricing">Pricing</a></li>
+                        <li><a href="#faq">FAQ</a></li>
+                        <li><a href="/login">Log In</a></li>
+                    </ul>
+                </div>
+                <div class="footer-col">
+                    <h4>Company</h4>
+                    <ul>
+                        <li><a href="#">About</a></li>
+                        <li><a href="#">Blog</a></li>
+                        <li><a href="#">Careers</a></li>
+                        <li><a href="#">Contact</a></li>
+                    </ul>
+                </div>
+                <div class="footer-col">
+                    <h4>Legal</h4>
+                    <ul>
+                        <li><a href="#">Privacy Policy</a></li>
+                        <li><a href="#">Terms of Service</a></li>
+                        <li><a href="#">Cookie Policy</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2026 VeloStack. All rights reserved.</p>
+                <div class="social-links">
+                    <a href="#" aria-label="Twitter">𝕏</a>
+                    <a href="#" aria-label="LinkedIn">in</a>
+                    <a href="#" aria-label="GitHub">GH</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        function toggleFaq(btn) {
+            const item = btn.parentElement;
+            const wasActive = item.classList.contains('active');
+            document.querySelectorAll('.faq-item').forEach(i => i.classList.remove('active'));
+            if (!wasActive) item.classList.add('active');
+        }
+
+        // Smooth scroll for anchor links
+        document.querySelectorAll('a[href^="#"]').forEach(a => {
+            a.addEventListener('click', e => {
+                e.preventDefault();
+                const target = document.querySelector(a.getAttribute('href'));
+                if (target) target.scrollIntoView({ behavior: 'smooth' });
+            });
+        });
+    </script>
+</body>
+</html>
